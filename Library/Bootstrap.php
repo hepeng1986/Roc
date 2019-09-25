@@ -24,5 +24,4 @@ define('LOG_DEBUG',     4);
 // 自动加载
 require LIB_PATH.'Loader.php';
 // 创建实例
-$app = new Roc_Application();
-$app->run();
+Roc_Application::run();
