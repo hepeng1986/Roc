@@ -3,7 +3,7 @@
 /**
  * Yaf Request Http
  */
-class Yaf_Request_Http extends Yaf_Request_Abstract
+class Roc_Request_Http extends Roc_Request_Abstract
 {
 
     /**
@@ -207,7 +207,7 @@ class Yaf_Request_Http extends Yaf_Request_Abstract
      *
      * @param string $requestUri            
      *
-     * @return Yaf_Request_Http
+     * @return Roc_Request_Http
      */
     public function setRequestUri ($requestUri = null)
     {
@@ -282,7 +282,7 @@ class Yaf_Request_Http extends Yaf_Request_Abstract
      *
      * @param mixed $baseUrl            
      *
-     * @return Yaf_Request_Abstract
+     * @return Roc_Request_Abstract
      */
     public function setBaseUri ($baseUri = null)
     {

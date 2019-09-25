@@ -1,19 +1,19 @@
 <?php
 
-class Yaf_G
+class Roc_G
 {
 
-    public static $YAF_CONTROLLER_DIRECTORY_NAME = 'Controller';
+    public static $Roc_CONTROLLER_DIRECTORY_NAME = 'Controller';
 
-    const YAF_VIEW_DIRECTORY_NAME = 'View';
+    const Roc_VIEW_DIRECTORY_NAME = 'View';
 
-    const YAF_DEFAULT_VIEW_EXT = 'phtml';
+    const Roc_DEFAULT_VIEW_EXT = 'phtml';
 
-    const YAF_ROUTER_DEFAULT_ACTION = 'index';
+    const Roc_ROUTER_DEFAULT_ACTION = 'index';
 
-    const YAF_ROUTER_DEFAULT_CONTROLLER = 'Index';
+    const Roc_ROUTER_DEFAULT_CONTROLLER = 'Index';
 
-    const YAF_ROUTER_DEFAULT_MODULE = 'Index';
+    const Roc_ROUTER_DEFAULT_MODULE = 'Index';
 
     protected static $_modulePath = '';
 
@@ -44,8 +44,8 @@ class Yaf_G
     public static function init ()
     {
         self::$_startTime = microtime(true);
-        Yaf_G::loadConfig('common');
-        Yaf_G::loadConfig(ENV_SCENE);
+        Roc_G::loadConfig('common');
+        Roc_G::loadConfig(ENV_SCENE);
     }
 
     /**
@@ -107,14 +107,14 @@ class Yaf_G
      * 加载配制文件
      *
      * @param unknown $type            
-     * @throws Yaf_Exception
+     * @throws Roc_Exception
      */
     public static function loadConfig ($type)
     {
         if (file_exists(self::getConfPath() . '/' . $type . '.php')) {
             $sFile = self::getConfPath() . '/' . $type . '.php';
         } else {
-            throw new Yaf_Exception('Config file ' . $type . ' not find!');
+            throw new Roc_Exception('Config file ' . $type . ' not find!');
         }
         
         $config = self::$_config;
@@ -180,9 +180,9 @@ class Yaf_G
      */
     public static function getRoute ($uri)
     {
-        $module = self::YAF_ROUTER_DEFAULT_MODULE;
-        $controller = self::YAF_ROUTER_DEFAULT_CONTROLLER;
-        $action = self::YAF_ROUTER_DEFAULT_ACTION;
+        $module = self::Roc_ROUTER_DEFAULT_MODULE;
+        $controller = self::Roc_ROUTER_DEFAULT_CONTROLLER;
+        $action = self::Roc_ROUTER_DEFAULT_ACTION;
         
         // 去掉参数，在$_GET里能获取到
         $aUrl = parse_url($uri);
@@ -192,9 +192,9 @@ class Yaf_G
         if (! empty($path[0]) && is_dir($root . '/' . ucfirst($path[0]))) {
             $module = ucfirst(array_shift($path));
         }
-        if (! empty($path[0]) && ! empty($path[1]) && file_exists($root . '/' . $module . '/' . self::$YAF_CONTROLLER_DIRECTORY_NAME . '/' . ucfirst($path[0]) . '/' . ucfirst($path[1]) . '.php')) {
+        if (! empty($path[0]) && ! empty($path[1]) && file_exists($root . '/' . $module . '/' . self::$Roc_CONTROLLER_DIRECTORY_NAME . '/' . ucfirst($path[0]) . '/' . ucfirst($path[1]) . '.php')) {
             $controller = ucfirst(array_shift($path)) . '_' . ucfirst(array_shift($path));
-        } elseif (! empty($path[0]) && file_exists($root . '/' . $module . '/' . self::$YAF_CONTROLLER_DIRECTORY_NAME . '/' . ucfirst($path[0]) . '.php')) {
+        } elseif (! empty($path[0]) && file_exists($root . '/' . $module . '/' . self::$Roc_CONTROLLER_DIRECTORY_NAME . '/' . ucfirst($path[0]) . '.php')) {
             $controller = ucfirst(array_shift($path));
         }
         if (! empty($path[0])) {
@@ -273,7 +273,7 @@ class Yaf_G
             $url .= 'http://' . self::getConf($domain, 'domain');
         }
         if ($uri == null) {
-            $oRequest = Yaf_Dispatcher::getInstance()->getRequest();
+            $oRequest = Roc_Dispatcher::getInstance()->getRequest();
             $uri = $oRequest->getRequestUri();
         }
         $aRoute = self::getRoute($uri);
@@ -322,7 +322,7 @@ class Yaf_G
      */
     public static function getControllerPath ()
     {
-        return self::$_modulePath . DIRECTORY_SEPARATOR . self::$YAF_CONTROLLER_DIRECTORY_NAME;
+        return self::$_modulePath . DIRECTORY_SEPARATOR . self::$Roc_CONTROLLER_DIRECTORY_NAME;
     }
 
     /**
@@ -332,7 +332,7 @@ class Yaf_G
      */
     public static function getViewPath ()
     {
-        return self::$_modulePath . DIRECTORY_SEPARATOR . self::YAF_VIEW_DIRECTORY_NAME;
+        return self::$_modulePath . DIRECTORY_SEPARATOR . self::Roc_VIEW_DIRECTORY_NAME;
     }
 
     /**
@@ -383,7 +383,7 @@ class Yaf_G
     {
         $aMsg = array();
         $aMsg[] = '# 错误时间 => ' . date('Y-m-d H:i:s');
-        $aMsg[] = '# 请求URL=> ' . Yaf_G::getUrl();
+        $aMsg[] = '# 请求URL=> ' . Roc_G::getUrl();
         $aMsg[] = '# 请求参数 => ' . json_encode(self::getParams(), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         if ($oExp->getCode() > 0) {
             $aMsg[] = '# 错误代码 => ' . $oExp->getCode();

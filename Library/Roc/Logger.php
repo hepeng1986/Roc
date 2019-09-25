@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Class Yaf_Logger
+ * Class Roc_Logger
  * User: felixtang
  * Date: 15-1-5
  * Time: 下午4:
@@ -15,7 +15,7 @@
  * );
  *
  */
-class Yaf_Logger
+class Roc_Logger
 {
 
     /**
@@ -102,7 +102,7 @@ class Yaf_Logger
     private static function init ()
     {
         self::$_bInit = true;
-        self::$_aConfig = Yaf_G::getConf(null, 'logger');
+        self::$_aConfig = Roc_G::getConf(null, 'logger');
 
         $sBaseDir = self::$_aConfig['sBaseDir'];
         unset(self::$_aConfig['sBaseDir']);

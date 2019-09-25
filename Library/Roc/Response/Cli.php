@@ -1,12 +1,12 @@
 <?php
 
 /**
- * Yaf_Response_Cli
+ * Roc_Response_Cli
  *
  * CLI response for controllers
  *
  */
-class Yaf_Response_Cli extends Yaf_Response_Abstract
+class Roc_Response_Cli extends Roc_Response_Abstract
 {
 
     /**

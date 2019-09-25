@@ -5,7 +5,7 @@
  * Handle request object ...
  *
  */
-abstract class Yaf_Request_Abstract
+abstract class Roc_Request_Abstract
 {
 
     /**
@@ -400,12 +400,12 @@ abstract class Yaf_Request_Abstract
      *
      * @param string $value            
      *
-     * @return Yaf_Request_Abstract
+     * @return Roc_Request_Abstract
      */
     public function setActionName ($action)
     {
         if (! is_string($action)) {
-            throw new Yaf_Exception('Expect a string action name');
+            throw new Roc_Exception('Expect a string action name');
         }
         $this->_action = $action;
         if (null === $action) {
@@ -420,12 +420,12 @@ abstract class Yaf_Request_Abstract
      *
      * @param string $value            
      *
-     * @return Yaf_Request_Abstract
+     * @return Roc_Request_Abstract
      */
     public function setControllerName ($controller)
     {
         if (! is_string($controller)) {
-            throw new Yaf_Exception('Expect a string controller name');
+            throw new Roc_Exception('Expect a string controller name');
         }
         $this->_controller = $controller;
         
@@ -442,12 +442,12 @@ abstract class Yaf_Request_Abstract
      *
      * @param string $value            
      *
-     * @return Yaf_Request_Abstract
+     * @return Roc_Request_Abstract
      */
     public function setModuleName ($module)
     {
         if (! is_string($module)) {
-            throw new Yaf_Exception('Expect a string module name');
+            throw new Roc_Exception('Expect a string module name');
         }
         $this->_module = $module;
         
@@ -462,7 +462,7 @@ abstract class Yaf_Request_Abstract
      * @param string $key            
      * @param mixed $value            
      *
-     * @return Yaf_Request_Abstract
+     * @return Roc_Request_Abstract
      */
     public function setParam ($name, $value = null)
     {
@@ -489,7 +489,7 @@ abstract class Yaf_Request_Abstract
     /**
      * Unset all user parameters
      *
-     * @return Yaf_Request_Abstract
+     * @return Roc_Request_Abstract
      */
     public function clearParams ()
     {
@@ -510,7 +510,7 @@ abstract class Yaf_Request_Abstract
      *
      * @param boolean $flag            
      *
-     * @return Yaf_Request_Abstract
+     * @return Roc_Request_Abstract
      */
     public function setRouted ($flag = true)
     {

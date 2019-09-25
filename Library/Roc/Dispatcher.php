@@ -3,34 +3,34 @@
 /**
  * Yaf Dispatcher
  */
-class Yaf_Dispatcher
+class Roc_Dispatcher
 {
 
     /**
      * Singleton instance
      *
-     * @var Yaf_Dispatcher
+     * @var Roc_Dispatcher
      */
     protected static $_instance = null;
 
     /**
-     * Instance of Yaf_Router_Interface
+     * Instance of Roc_Router_Interface
      *
-     * @var Yaf_Router
+     * @var Roc_Router
      */
     protected $_router = null;
 
     /**
      * View object
      *
-     * @var Yaf_View_Interface
+     * @var Roc_View_Interface
      */
     protected $_view = null;
 
     /**
-     * Instance of Yaf_Request_Abstract
+     * Instance of Roc_Request_Abstract
      *
-     * @var Yaf_Request_Abstract
+     * @var Roc_Request_Abstract
      */
     protected $_request = null;
 
@@ -70,13 +70,13 @@ class Yaf_Dispatcher
     /**
      * Singleton instance
      *
-     * @return Yaf_Dispatcher
+     * @return Roc_Dispatcher
      */
     public static function getInstance ()
     {
         if (null === self::$_instance) {
             self::$_instance = new self();
-            self::$_instance->_router = new Yaf_Router();
+            self::$_instance->_router = new Roc_Router();
         }
 
         return self::$_instance;
@@ -85,20 +85,20 @@ class Yaf_Dispatcher
     /**
      * Dispatch an HTTP request to a controller/action.
      *
-     * @param Yaf_Request_Abstract|null $request
+     * @param Roc_Request_Abstract|null $request
      *
-     * @return void Yaf_Response_Abstract
+     * @return void Roc_Response_Abstract
      */
     public function dispatch ()
     {
         $request = $this->getRequest();
-        if (! ($request instanceof Yaf_Request_Abstract)) {
-            throw new Yaf_Exception('Expect a Yaf_Request_Abstract instance');
+        if (! ($request instanceof Roc_Request_Abstract)) {
+            throw new Roc_Exception('Expect a Roc_Request_Abstract instance');
         }
-        if ($request instanceof Yaf_Request_Http) {
-            $response = new Yaf_Response_Http();
-        } elseif ($request instanceof Yaf_Request_Cli) {
-            $response = new Yaf_Response_Cli();
+        if ($request instanceof Roc_Request_Http) {
+            $response = new Roc_Response_Http();
+        } elseif ($request instanceof Roc_Request_Cli) {
+            $response = new Roc_Response_Cli();
         }
 
         // 选择路由
@@ -127,17 +127,17 @@ class Yaf_Dispatcher
                 $plugin->postDispatch($request, $response);
             }
         } catch (Exception $oExp) {
-            if (Yaf_G::isDebug() || $request->getMethod() == 'CLI') {
+            if (Roc_G::isDebug() || $request->getMethod() == 'CLI') {
                 if ($request->getMethod() == 'CLI') {
-                    Yaf_Logger::error(Yaf_G::parseException($oExp));
-                    echo Yaf_G::parseException($oExp);
+                    Roc_Logger::error(Roc_G::parseException($oExp));
+                    echo Roc_G::parseException($oExp);
                 } else {
                     echo "<pre>";
-                    echo Yaf_G::parseException($oExp);
+                    echo Roc_G::parseException($oExp);
                     echo "</pre>";
                 }
             } else {
-                Yaf_Logger::error(Yaf_G::parseException($oExp));
+                Roc_Logger::error(Roc_G::parseException($oExp));
                 $response->setResponseCode(404);
                 $view->display('404.phtml');
             }
@@ -170,17 +170,17 @@ class Yaf_Dispatcher
     /**
      * returns the application
      *
-     * @return Yaf_Application
+     * @return Roc_Application
      */
     public function getApplication ()
     {
-        return Yaf_Application::app();
+        return Roc_Application::app();
     }
 
     /**
      * Return the request object.
      *
-     * @return null Yaf_Request_Abstract
+     * @return null Roc_Request_Abstract
      */
     public function getRequest ()
     {
@@ -190,11 +190,11 @@ class Yaf_Dispatcher
     /**
      * Set the request object.
      *
-     * @param Yaf_Request_Abstract $request
+     * @param Roc_Request_Abstract $request
      *
-     * @return Yaf_Dispatcher
+     * @return Roc_Dispatcher
      */
-    public function setRequest (Yaf_Request_Abstract $request)
+    public function setRequest (Roc_Request_Abstract $request)
     {
         $this->_request = $request;
 
@@ -204,7 +204,7 @@ class Yaf_Dispatcher
     /**
      * Return the router object.
      *
-     * @return Yaf_Router
+     * @return Roc_Router
      */
     public function getRouter ()
     {
@@ -216,12 +216,12 @@ class Yaf_Dispatcher
      *
      * @param string $templates_dir
      * @param unknown $options
-     * @return Yaf_View_Interface
+     * @return Roc_View_Interface
      */
     public function initView ($options = array())
     {
         if ($this->_view == null) {
-            $this->_view = new Yaf_View_Simple($options);
+            $this->_view = new Roc_View_Simple($options);
         }
 
         return $this->_view;
@@ -230,11 +230,11 @@ class Yaf_Dispatcher
     /**
      * Register a plugin.
      *
-     * @param Yaf_Plugin $plugin
+     * @param Roc_Plugin $plugin
      *
-     * @return Yaf_Dispatcher
+     * @return Roc_Dispatcher
      */
-    public function registerPlugin (Yaf_Plugin $plugin)
+    public function registerPlugin (Roc_Plugin $plugin)
     {
         $this->_plugins[] = $plugin;
 
@@ -249,7 +249,7 @@ class Yaf_Dispatcher
      *
      * @param boolean $flag
      *
-     * @return boolean Yaf_Dispatcher as a setter,
+     * @return boolean Roc_Dispatcher as a setter,
      *         returns object; as a getter, returns boolean
      */
     public function returnResponse ($flag = null)
@@ -275,29 +275,29 @@ class Yaf_Dispatcher
     /**
      * Set the view object.
      *
-     * @param Yaf_View_Interface $view
+     * @param Roc_View_Interface $view
      *
-     * @return Yaf_Dispatcher
+     * @return Roc_Dispatcher
      */
-    public function setView (Yaf_View_Interface $view)
+    public function setView (Roc_View_Interface $view)
     {
         $this->_view = $view;
 
         return $this;
     }
 
-    private function handle (Yaf_Request_Abstract $request, Yaf_Response_Abstract $response, Yaf_View_Interface $view)
+    private function handle (Roc_Request_Abstract $request, Roc_Response_Abstract $response, Roc_View_Interface $view)
     {
         $request->setDispatched(true);
         $app = $this->getApplication();
         $module = $request->getModuleName();
         if (empty($module)) {
-            throw new Yaf_Exception('Unexcepted an empty module name');
+            throw new Roc_Exception('Unexcepted an empty module name');
             return false;
         }
         $controllerName = $request->getControllerName();
         if (empty($controllerName)) {
-            throw new Yaf_Exception('Unexcepted an empty controller name');
+            throw new Roc_Exception('Unexcepted an empty controller name');
             return false;
         }
         $className = $this->getController($module, $controllerName);
@@ -305,8 +305,8 @@ class Yaf_Dispatcher
             return false;
         }
         $controller = new $className($request, $response, $view);
-        if (! ($controller instanceof Yaf_Controller)) {
-            throw new Yaf_Exception('Controller must be an instance of Yaf_Controller');
+        if (! ($controller instanceof Roc_Controller)) {
+            throw new Roc_Exception('Controller must be an instance of Roc_Controller');
             return false;
         }
         $action = $request->getActionName();
@@ -364,27 +364,27 @@ class Yaf_Dispatcher
 
     private function getController ($module, $controller)
     {
-        $classname = $module . '_' . Yaf_G::$YAF_CONTROLLER_DIRECTORY_NAME . '_' . $controller;
+        $classname = $module . '_' . Roc_G::$Roc_CONTROLLER_DIRECTORY_NAME . '_' . $controller;
         return $classname;
     }
 
-    private function _fixDefault (Yaf_Request_Abstract $request)
+    private function _fixDefault (Roc_Request_Abstract $request)
     {
         $module = $request->getModuleName();
         if (empty($module) || ! is_string($module)) {
-            $request->setModuleName(Yaf_G::YAF_ROUTER_DEFAULT_MODULE);
+            $request->setModuleName(Roc_G::Roc_ROUTER_DEFAULT_MODULE);
         } else {
             $request->setModuleName($module);
         }
         $controller = $request->getControllerName();
         if (empty($controller) || ! is_string($controller)) {
-            $request->setControllerName(Yaf_G::YAF_ROUTER_DEFAULT_CONTROLLER);
+            $request->setControllerName(Roc_G::Roc_ROUTER_DEFAULT_CONTROLLER);
         } else {
             $request->setControllerName($controller);
         }
         $action = $request->getActionName();
         if (empty($action) || ! is_string($action)) {
-            $request->setActionName(Yaf_G::YAF_ROUTER_DEFAULT_ACTION);
+            $request->setActionName(Roc_G::Roc_ROUTER_DEFAULT_ACTION);
         } else {
             $request->setActionName($action);
         }

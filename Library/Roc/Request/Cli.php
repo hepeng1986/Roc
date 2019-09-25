@@ -1,10 +1,10 @@
 <?php
 
 /**
- * Yaf_Request_Cli
+ * Roc_Request_Cli
  *
  */
-class Yaf_Request_Cli extends Yaf_Request_Abstract
+class Roc_Request_Cli extends Roc_Request_Abstract
 {
 
     public function __construct ()

@@ -5,7 +5,7 @@
  *
  *
  */
-abstract class Yaf_Controller
+abstract class Roc_Controller
 {
 
     public $actions = array();
@@ -21,16 +21,16 @@ abstract class Yaf_Controller
     protected $_script = '';
 
     /**
-     * Yaf_Request_Abstract object wrapping the request environment
+     * Roc_Request_Abstract object wrapping the request environment
      *
-     * @var Yaf_Request_Abstract
+     * @var Roc_Request_Abstract
      */
     protected $_request = null;
 
     /**
-     * Yaf_Response_Abstract object wrapping the response
+     * Roc_Response_Abstract object wrapping the response
      *
-     * @var Yaf_Response_Abstract
+     * @var Roc_Response_Abstract
      */
     protected $_response = null;
 
@@ -45,7 +45,7 @@ abstract class Yaf_Controller
     /**
      * View object
      *
-     * @var Yaf_View_Interface
+     * @var Roc_View_Interface
      */
     protected $_view = null;
 
@@ -57,15 +57,15 @@ abstract class Yaf_Controller
      * available via {@link getRequest()}, {@link getResponse()}, and
      * {@link getInvokeArgs()}, respectively.
      *
-     * @param Yaf_Request_Abstract $request
-     * @param Yaf_Response_Abstract $response
-     * @param Yaf_View_Interface $view
+     * @param Roc_Request_Abstract $request
+     * @param Roc_Response_Abstract $response
+     * @param Roc_View_Interface $view
      * @param array $invokeArgs
      *            Any additional invocation arguments
      *
      * @return void
      */
-    public function __construct (Yaf_Request_Abstract $request, Yaf_Response_Abstract $response, Yaf_View_Interface $view, array $invokeArgs = array())
+    public function __construct (Roc_Request_Abstract $request, Roc_Response_Abstract $response, Roc_View_Interface $view, array $invokeArgs = array())
     {
         $this->_request = $request;
         $this->_response = $response;
@@ -111,7 +111,7 @@ abstract class Yaf_Controller
      * resetting {@link $viewSuffix}.
      *
      *
-     * @see Yaf_Response_Abstract::appendBody()
+     * @see Roc_Response_Abstract::appendBody()
      *
      * @param string|null $tpl
      *            Defaults to action registered in request object
@@ -137,7 +137,7 @@ abstract class Yaf_Controller
      * resetting {@link $viewSuffix}.
      *
      *
-     * @see Yaf_Response_Abstract::appendBody()
+     * @see Roc_Response_Abstract::appendBody()
      *
      * @param string|null $tpl
      *            Defaults to action registered in request object
@@ -250,7 +250,7 @@ abstract class Yaf_Controller
     /**
      * Return the Request object
      *
-     * @return Yaf_Request_Http
+     * @return Roc_Request_Http
      */
     public function getRequest ()
     {
@@ -260,7 +260,7 @@ abstract class Yaf_Controller
     /**
      * Return the Response object
      *
-     * @return Yaf_Response_Abstract
+     * @return Roc_Response_Abstract
      */
     public function getResponse ()
     {
@@ -270,7 +270,7 @@ abstract class Yaf_Controller
     /**
      * Return the View object
      *
-     * @return Yaf_View_Interface
+     * @return Roc_View_Interface
      */
     public function getView ()
     {
@@ -282,7 +282,7 @@ abstract class Yaf_Controller
      *
      * @todo this does nothing for now
      *
-     * @return Yaf_View_Interface
+     * @return Roc_View_Interface
      */
     public function initView ()
     {
@@ -309,7 +309,7 @@ abstract class Yaf_Controller
      */
     protected function autoRender ($flag = null)
     {
-        return Yaf_Dispatcher::getInstance()->autoRender($flag);
+        return Roc_Dispatcher::getInstance()->autoRender($flag);
     }
 
     /**
@@ -428,10 +428,10 @@ abstract class Yaf_Controller
             if (null === $action) {
                 $action = $request->getActionName();
             } elseif (! is_string($action)) {
-                throw new Yaf_Exception('Invalid action for view rendering');
+                throw new Roc_Exception('Invalid action for view rendering');
             }
             $action = str_replace('_', DIRECTORY_SEPARATOR, strtolower($action));
-            $script = $action . '.' . Yaf_G::YAF_DEFAULT_VIEW_EXT;
+            $script = $action . '.' . Roc_G::Roc_DEFAULT_VIEW_EXT;
             $controller = $request->getControllerName();
             if ($controller != null) {
                 $controller = str_replace('_', DIRECTORY_SEPARATOR, ($controller));
@@ -440,10 +440,10 @@ abstract class Yaf_Controller
         }
 
         $script = trim($script, DIRECTORY_SEPARATOR);
-        $script = Yaf_G::getViewPath() . DIRECTORY_SEPARATOR . $script;
+        $script = Roc_G::getViewPath() . DIRECTORY_SEPARATOR . $script;
 
         if (! file_exists($script)) {
-            throw new Yaf_Exception('View file 【' . $script . '】 not found!');
+            throw new Roc_Exception('View file 【' . $script . '】 not found!');
         }
         return $script;
     }
@@ -552,10 +552,10 @@ abstract class Yaf_Controller
      * 调用的方法不存在时
      * @param string $sMethod 方法名
      * @param array $aArg 参数
-     * @throws Yaf_Exception
+     * @throws Roc_Exception
      */
     public function __call($sMethod, $aArg)
     {
-        throw new Yaf_Exception(__CLASS__ . '::' . $sMethod . ' not exists!');
+        throw new Roc_Exception(__CLASS__ . '::' . $sMethod . ' not exists!');
     }
 }

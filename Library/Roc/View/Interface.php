@@ -3,7 +3,7 @@
 /**
  * Yaf View Interface
  */
-interface Yaf_View_Interface
+interface Roc_View_Interface
 {
     /**
      * Assign variables to the view script via differing strategies.

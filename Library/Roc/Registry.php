@@ -3,7 +3,7 @@
 /**
  * Yaf Registry
  */
-class Yaf_Registry
+class Roc_Registry
 {
 
     /**

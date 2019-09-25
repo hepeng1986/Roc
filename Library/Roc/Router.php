@@ -1,9 +1,9 @@
 <?php
 
 /**
- * Yaf_Router is the standard framework router.
+ * Roc_Router is the standard framework router.
  */
-class Yaf_Router
+class Roc_Router
 {
 
     /**
@@ -12,7 +12,7 @@ class Yaf_Router
      *
      * @return bool if there is a valid route
      */
-    public function route (Yaf_Request_Abstract $request)
+    public function route (Roc_Request_Abstract $request)
     {
         $requestUri = $request->getRequestUri();
 
@@ -26,7 +26,7 @@ class Yaf_Router
 
         //支持rewrite路由
         $matches = null;
-        $rewrites = Yaf_G::getConf('rewrite', 'route');
+        $rewrites = Roc_G::getConf('rewrite', 'route');
         $rest = explode('?', $path, 2);
         $path = $rest[0];
         if (!empty($rewrites)) {
@@ -43,8 +43,8 @@ class Yaf_Router
         }
 
         //取得Route
-        $aRoute = Yaf_G::getRoute($path);
-        Yaf_G::setModulePath($aRoute['module']);
+        $aRoute = Roc_G::getRoute($path);
+        Roc_G::setModulePath($aRoute['module']);
         $request->setModuleName($aRoute['module']);
         $request->setControllerName($aRoute['controller']);
         $request->setActionName($aRoute['action']);

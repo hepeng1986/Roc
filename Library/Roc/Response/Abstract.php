@@ -1,12 +1,12 @@
 <?php
 
 /**
- * Yaf_Response_Abstract
+ * Roc_Response_Abstract
  *
- * Base class for Yaf_Controller responses
+ * Base class for Roc_Controller responses
  *
  */
-abstract class Yaf_Response_Abstract
+abstract class Roc_Response_Abstract
 {
 
     /**
@@ -39,7 +39,7 @@ abstract class Yaf_Response_Abstract
      *
      * @param string $content            
      *
-     * @return Yaf_Response_Abstract
+     * @return Roc_Response_Abstract
      */
     public function appendBody ($body)
     {
@@ -63,7 +63,7 @@ abstract class Yaf_Response_Abstract
     /**
      * Clear headers
      *
-     * @return Yaf_Response_Abstract
+     * @return Roc_Response_Abstract
      */
     public function clearHeaders ()
     {
@@ -90,7 +90,7 @@ abstract class Yaf_Response_Abstract
      *
      * @param string $body            
      *
-     * @return Yaf_Response_Abstract
+     * @return Roc_Response_Abstract
      */
     public function setBody ($body)
     {
@@ -114,7 +114,7 @@ abstract class Yaf_Response_Abstract
      *
      * @param string $body            
      *
-     * @return Yaf_Response_Abstract
+     * @return Roc_Response_Abstract
      */
     public function prependBody ($body)
     {
@@ -146,7 +146,7 @@ abstract class Yaf_Response_Abstract
      * @param string $value            
      * @param boolean $replace            
      *
-     * @return Yaf_Response_Abstract
+     * @return Roc_Response_Abstract
      */
     public function setHeader ($name, $value, $replace = false)
     {
@@ -177,7 +177,7 @@ abstract class Yaf_Response_Abstract
      *
      * @param string $url            
      *
-     * @return Yaf_Response_Abstract
+     * @return Roc_Response_Abstract
      */
     public function setRedirect ($url)
     {
@@ -230,7 +230,7 @@ abstract class Yaf_Response_Abstract
      * If an {@link setHttpResponseCode() HTTP response code}
      * has been specified, it is sent with the first header.
      *
-     * @return Yaf_Response_Abstract
+     * @return Roc_Response_Abstract
      */
     protected function sendHeaders ()
     {

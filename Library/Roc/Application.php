@@ -3,18 +3,18 @@
 /**
  * Yaf Application
  */
-class Yaf_Application
+class Roc_Application
 {
 
     /**
      *
-     * @var Yaf_Application
+     * @var Roc_Application
      */
     protected static $_app = null;
 
     /**
      *
-     * @var Yaf_Dispatcher
+     * @var Roc_Dispatcher
      */
     protected $_dispatcher = null;
 
@@ -24,25 +24,25 @@ class Yaf_Application
     {
         $app = self::app();
         if (! is_null($app)) {
-            throw new Yaf_Exception('Only one application can be initialized');
+            throw new Roc_Exception('Only one application can be initialized');
         }
         
-        Yaf_G::init();
+        Roc_G::init();
         
         // request initialization
         if (isset($_SERVER['REQUEST_METHOD'])) {
-            $request = new Yaf_Request_Http();
+            $request = new Roc_Request_Http();
         } else {
-            $request = new Yaf_Request_Cli();
+            $request = new Roc_Request_Cli();
         }
         if ($request == null) {
-            throw new Yaf_Exception('Initialization of request failed');
+            throw new Roc_Exception('Initialization of request failed');
         }
         
         // dispatcher
-        $this->_dispatcher = Yaf_Dispatcher::getInstance();
-        if ($this->_dispatcher == null || ! ($this->_dispatcher instanceof Yaf_Dispatcher)) {
-            throw new Yaf_Exception('Instantiation of dispatcher failed');
+        $this->_dispatcher = Roc_Dispatcher::getInstance();
+        if ($this->_dispatcher == null || ! ($this->_dispatcher instanceof Roc_Dispatcher)) {
+            throw new Roc_Exception('Instantiation of dispatcher failed');
         }
         $this->_dispatcher->setRequest($request);
         
@@ -52,7 +52,7 @@ class Yaf_Application
     /**
      * Retrieve application instance
      *
-     * @return Yaf_Application
+     * @return Roc_Application
      */
     public static function app ()
     {
@@ -62,8 +62,8 @@ class Yaf_Application
     public function bootstrap ()
     {
         $bootstrap = new Bootstrap();
-        if (! ($bootstrap instanceof Yaf_Bootstrap)) {
-            throw new Yaf_Exception('Expect a Yaf_Bootstrap instance, ' . get_class($bootstrap) . ' give ');
+        if (! ($bootstrap instanceof Roc_Bootstrap)) {
+            throw new Roc_Exception('Expect a Roc_Bootstrap instance, ' . get_class($bootstrap) . ' give ');
         }
         if (version_compare(PHP_VERSION, '5.2.6') === - 1) {
             $class = new ReflectionObject($bootstrap);
@@ -76,9 +76,9 @@ class Yaf_Application
         } else {
             $methodNames = get_class_methods($bootstrap);
         }
-        $initMethodLength = strlen(Yaf_Bootstrap::YAF_BOOTSTRAP_INITFUNC_PREFIX);
+        $initMethodLength = strlen(Roc_Bootstrap::Roc_BOOTSTRAP_INITFUNC_PREFIX);
         foreach ($methodNames as $method) {
-            if ($initMethodLength < strlen($method) && Yaf_Bootstrap::YAF_BOOTSTRAP_INITFUNC_PREFIX === substr($method, 0, $initMethodLength)) {
+            if ($initMethodLength < strlen($method) && Roc_Bootstrap::Roc_BOOTSTRAP_INITFUNC_PREFIX === substr($method, 0, $initMethodLength)) {
                 $bootstrap->$method($this->_dispatcher);
             }
         }
@@ -87,12 +87,12 @@ class Yaf_Application
     }
 
     /**
-     * Start Yaf_Application
+     * Start Roc_Application
      */
     public function run ()
     {
         if ($this->_running == true) {
-            throw new Yaf_Exception('An application instance already run');
+            throw new Roc_Exception('An application instance already run');
         } else {
             $this->_running = true;
             
@@ -101,9 +101,9 @@ class Yaf_Application
     }
 
     /**
-     * Get Yaf_Dispatcher instance
+     * Get Roc_Dispatcher instance
      *
-     * @return Yaf_Dispatcher
+     * @return Roc_Dispatcher
      */
     public function getDispatcher ()
     {

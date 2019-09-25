@@ -3,12 +3,12 @@
 /**
  * Yaf Session
  */
-class Yaf_Session implements Iterator, ArrayAccess, Countable
+class Roc_Session implements Iterator, ArrayAccess, Countable
 {
 
     /**
      *
-     * @var Yaf_Session instance
+     * @var Roc_Session instance
      */
     protected static $_instance;
 
@@ -30,7 +30,7 @@ class Yaf_Session implements Iterator, ArrayAccess, Countable
     /**
      * Retrieve singleton instance
      *
-     * @return Yaf_Session
+     * @return Roc_Session
      */
     public static function getInstance ()
     {
@@ -115,7 +115,7 @@ class Yaf_Session implements Iterator, ArrayAccess, Countable
      * @param string $name            
      * @param mixed $value            
      *
-     * @throws Yaf_Exception
+     * @throws Roc_Exception
      * @return void
      */
     public function __set ($name, $value)
@@ -124,7 +124,7 @@ class Yaf_Session implements Iterator, ArrayAccess, Countable
             $this->session[$name] = $value;
             $_SESSION[$name] = $value;
         } else {
-            throw new Yaf_Exception('Expect a string key name');
+            throw new Roc_Exception('Expect a string key name');
         }
     }
 

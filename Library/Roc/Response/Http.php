@@ -1,12 +1,12 @@
 <?php
 
 /**
- * Yaf_Response_Http
+ * Roc_Response_Http
  *
  * HTTP response for controllers
  *
  */
-class Yaf_Response_Http extends Yaf_Response_Abstract
+class Roc_Response_Http extends Roc_Response_Abstract
 {
 
     protected $_sendheader = true;
@@ -28,12 +28,12 @@ class Yaf_Response_Http extends Yaf_Response_Abstract
      *
      * @param int $code            
      *
-     * @return Yaf_Response_Http
+     * @return Roc_Response_Http
      */
     public function setResponseCode ($code)
     {
         if (! is_int($code) || (100 > $code) || (599 < $code)) {
-            throw new Yaf_Exception('Invalid HTTP response code');
+            throw new Roc_Exception('Invalid HTTP response code');
         }
         
         $this->_responseCode = $code;
@@ -48,7 +48,7 @@ class Yaf_Response_Http extends Yaf_Response_Abstract
      *
      * @param string $url            
      *
-     * @return Yaf_Response_Abstract
+     * @return Roc_Response_Abstract
      */
     public function setRedirect ($url)
     {
@@ -64,7 +64,7 @@ class Yaf_Response_Http extends Yaf_Response_Abstract
      * If an {@link setResponseCode() HTTP response code}
      * has been specified, it is sent with the first header.
      *
-     * @return Yaf_Response_Http
+     * @return Roc_Response_Http
      */
     protected function sendHeaders ()
     {

@@ -4,7 +4,7 @@
  * Simple view class to help enforce private constructs.
  *
  */
-class Yaf_View_Simple implements Yaf_View_Interface
+class Roc_View_Simple implements Roc_View_Interface
 {
 
     /**
@@ -31,10 +31,10 @@ class Yaf_View_Simple implements Yaf_View_Interface
     /**
      * Assigns variables to the view script via differing strategies.
      *
-     * Yaf_View_Simple::assign('name', $value) assigns a variable called 'name'
+     * Roc_View_Simple::assign('name', $value) assigns a variable called 'name'
      * with the corresponding $value.
      *
-     * Yaf_View_Simple::assign($array) assigns the array keys as variable
+     * Roc_View_Simple::assign($array) assigns the array keys as variable
      * names (with the corresponding array values).
      *
      * @see __set()
@@ -45,8 +45,8 @@ class Yaf_View_Simple implements Yaf_View_Interface
      *            mixed (Optional) If assigning a named variable, use this
      *            as the value.
      *            
-     * @return Yaf_View_Simple
-     * @throws Yaf_Exception if $name is
+     * @return Roc_View_Simple
+     * @throws Roc_Exception if $name is
      *         neither a string nor an array,
      */
     public function assign ($name, $value = null)
@@ -61,7 +61,7 @@ class Yaf_View_Simple implements Yaf_View_Interface
                 $this->_tpl_vars[$key] = $val;
             }
         } else {
-            throw new Yaf_Exception('assign() expects a string or array, received ' . gettype($name));
+            throw new Roc_Exception('assign() expects a string or array, received ' . gettype($name));
         }
         
         return $this;
@@ -80,8 +80,8 @@ class Yaf_View_Simple implements Yaf_View_Interface
      * @param
      *            mixed the variable value
      *            
-     * @return Yaf_View_Simple
-     * @throws Yaf_Exception if $name is not a string,
+     * @return Roc_View_Simple
+     * @throws Roc_Exception if $name is not a string,
      */
     public function assignRef ($name, &$value)
     {
@@ -90,7 +90,7 @@ class Yaf_View_Simple implements Yaf_View_Interface
             // assign by name and value
             $this->_tpl_vars[$name] = $value;
         } else {
-            throw new Yaf_Exception('assign() expects a string, received ' . gettype($name));
+            throw new Roc_Exception('assign() expects a string, received ' . gettype($name));
         }
         
         return $this;
@@ -201,19 +201,19 @@ class Yaf_View_Simple implements Yaf_View_Interface
     protected function _script ($name)
     {
         if (preg_match('#\.\.[\\\/]#', $name)) {
-            throw new Yaf_Exception('Requested scripts may not include parent ' . 'directory traversal ("../", "..\\" notation)');
+            throw new Roc_Exception('Requested scripts may not include parent ' . 'directory traversal ("../", "..\\" notation)');
         }
         
-        $tpl_dir = Yaf_G::getViewPath();
+        $tpl_dir = Roc_G::getViewPath();
         if ($tpl_dir == '') {
-            throw new Yaf_Exception('Could not determine the view script path, ' . 'you should call Yaf_View_Simple::setScriptPath to specific it');
+            throw new Roc_Exception('Could not determine the view script path, ' . 'you should call Roc_View_Simple::setScriptPath to specific it');
         }
-        if (Yaf_G::isAbsolutePath($name) && is_readable($name)) {
+        if (Roc_G::isAbsolutePath($name) && is_readable($name)) {
             return $name;
         } elseif (is_readable($tpl_dir . DIRECTORY_SEPARATOR . $name)) {
             return $tpl_dir . DIRECTORY_SEPARATOR . $name;
         }
-        throw new Yaf_Exception("Unable to find template " . $tpl_dir . DIRECTORY_SEPARATOR . $name);
+        throw new Roc_Exception("Unable to find template " . $tpl_dir . DIRECTORY_SEPARATOR . $name);
     }
 
     protected function _run ($template, $vars, $useEval = false)
