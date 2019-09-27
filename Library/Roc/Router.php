@@ -48,23 +48,6 @@ class Roc_Router
         $request->setModuleName($aRoute['module']);
         $request->setControllerName($aRoute['controller']);
         $request->setActionName($aRoute['action']);
-
-        //解析参数
-        parse_str($aRoute['query'], $params);
-        /*
-        $params = array();
-        $rest = $aRoute['query'];
-        $numSegs = count($rest);
-        if ($numSegs > 0) {
-            for ($i = 0; $i < $numSegs; $i = $i + 2) {
-                $key = $rest[$i];
-                $val = isset($rest[$i + 1]) ? $rest[$i + 1]: null;
-                $params[$key] = (isset($params[$key]) ? (array_merge((array) $params[$key], array(
-                    $val
-                ))) : $val);
-            }
-        }
-        */
         
         //rewrite参数解析
         if (!empty($matches)) {

@@ -87,18 +87,13 @@ class Roc_Dispatcher
     {
         $request = $this->getRequest();
         $response = $this->getResponse();
-
-        // 选择路由
-        $router = $this->getRouter();
-        $router->route($request);
-        $this->_fixDefault($request);
-
-
         // 执行Action
         try {
+            // 选择路由
+            $router = $this->getRouter();
+            $router->route($request);
             $view = $this->initView();
             $this->handle($request, $response, $view);
-            $this->_fixDefault($request);
 
         } catch (Exception $oExp) {
             if (Roc_G::isDebug() || $request->getMethod() == 'CLI') {
@@ -268,14 +263,6 @@ class Roc_Dispatcher
         $actionMethod = $action . 'Action';
         
         try {
-            $ret = call_user_func(array(
-                $controller,
-                'actionController'
-            ));
-            
-            if ($ret !== false && class_exists($ret)) {
-                $controller = new $ret($request, $response, $view);
-            }
 
             $ret = call_user_func(array(
                 $controller,
@@ -293,10 +280,11 @@ class Roc_Dispatcher
                 return false;
             }
 
-            $ret = call_user_func(array(
+            call_user_func(array(
                 $controller,
                 'actionAfter'
             ));
+
         } catch (Exception $oExp) {
             if ($oExp->getCode() != 40004) {
                 throw $oExp;
@@ -313,27 +301,5 @@ class Roc_Dispatcher
     {
         $classname = $module . '_' . Roc_G::$Roc_CONTROLLER_DIRECTORY_NAME . '_' . $controller;
         return $classname;
-    }
-
-    private function _fixDefault (Roc_Request_Abstract $request)
-    {
-        $module = $request->getModuleName();
-        if (empty($module) || ! is_string($module)) {
-            $request->setModuleName(Roc_G::Roc_ROUTER_DEFAULT_MODULE);
-        } else {
-            $request->setModuleName($module);
-        }
-        $controller = $request->getControllerName();
-        if (empty($controller) || ! is_string($controller)) {
-            $request->setControllerName(Roc_G::Roc_ROUTER_DEFAULT_CONTROLLER);
-        } else {
-            $request->setControllerName($controller);
-        }
-        $action = $request->getActionName();
-        if (empty($action) || ! is_string($action)) {
-            $request->setActionName(Roc_G::Roc_ROUTER_DEFAULT_ACTION);
-        } else {
-            $request->setActionName($action);
-        }
     }
 }
