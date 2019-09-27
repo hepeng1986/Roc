@@ -33,13 +33,7 @@ class Roc_Dispatcher
      * @var Roc_Request_Abstract
      */
     protected $_request = null;
-
-    /**
-     * holds the references to the plugins
-     *
-     * @var array
-     */
-    protected $_plugins = array();
+    protected $_response = null;
 
     /**
      * Whether or not to enable view.
@@ -92,40 +86,20 @@ class Roc_Dispatcher
     public function dispatch ()
     {
         $request = $this->getRequest();
-        if (! ($request instanceof Roc_Request_Abstract)) {
-            throw new Roc_Exception('Expect a Roc_Request_Abstract instance');
-        }
-        if ($request instanceof Roc_Request_Http) {
-            $response = new Roc_Response_Http();
-        } elseif ($request instanceof Roc_Request_Cli) {
-            $response = new Roc_Response_Cli();
-        }
+        $response = $this->getResponse();
 
         // 选择路由
         $router = $this->getRouter();
-        foreach ($this->_plugins as $plugin) {
-            $plugin->routerStartup($request, $response);
-        }
         $router->route($request);
         $this->_fixDefault($request);
-        foreach ($this->_plugins as $plugin) {
-            $plugin->routerShutdown($request, $response);
-        }
+
 
         // 执行Action
         try {
             $view = $this->initView();
-            foreach ($this->_plugins as $plugin) {
-                $plugin->dispatchLoopStartup($request, $response);
-            }
-            foreach ($this->_plugins as $plugin) {
-                $plugin->preDispatch($request, $response, $view);
-            }
             $this->handle($request, $response, $view);
             $this->_fixDefault($request);
-            foreach ($this->_plugins as $plugin) {
-                $plugin->postDispatch($request, $response);
-            }
+
         } catch (Exception $oExp) {
             if (Roc_G::isDebug() || $request->getMethod() == 'CLI') {
                 if ($request->getMethod() == 'CLI') {
@@ -141,9 +115,6 @@ class Roc_Dispatcher
                 $response->setResponseCode(404);
                 $view->display('404.phtml');
             }
-        }
-        foreach ($this->_plugins as $plugin) {
-            $plugin->dispatchLoopShutdown($request, $response);
         }
 
         if ($this->returnResponse() == false) {
@@ -168,16 +139,6 @@ class Roc_Dispatcher
     }
 
     /**
-     * returns the application
-     *
-     * @return Roc_Application
-     */
-    public function getApplication ()
-    {
-        return Roc_Application::app();
-    }
-
-    /**
      * Return the request object.
      *
      * @return null Roc_Request_Abstract
@@ -186,7 +147,10 @@ class Roc_Dispatcher
     {
         return $this->_request;
     }
-
+    public function getResponse ()
+    {
+        return $this->_response;
+    }
     /**
      * Set the request object.
      *
@@ -197,6 +161,12 @@ class Roc_Dispatcher
     public function setRequest (Roc_Request_Abstract $request)
     {
         $this->_request = $request;
+
+        return $this;
+    }
+    public function setResponse (Roc_Response_Abstract $reponse)
+    {
+        $this->_response = $reponse;
 
         return $this;
     }
@@ -225,20 +195,6 @@ class Roc_Dispatcher
         }
 
         return $this->_view;
-    }
-
-    /**
-     * Register a plugin.
-     *
-     * @param Roc_Plugin $plugin
-     *
-     * @return Roc_Dispatcher
-     */
-    public function registerPlugin (Roc_Plugin $plugin)
-    {
-        $this->_plugins[] = $plugin;
-
-        return $this;
     }
 
     /**
@@ -289,7 +245,6 @@ class Roc_Dispatcher
     private function handle (Roc_Request_Abstract $request, Roc_Response_Abstract $response, Roc_View_Interface $view)
     {
         $request->setDispatched(true);
-        $app = $this->getApplication();
         $module = $request->getModuleName();
         if (empty($module)) {
             throw new Roc_Exception('Unexcepted an empty module name');
@@ -354,14 +309,6 @@ class Roc_Dispatcher
         $controller = null;
     }
 
-    private function getActionParams ($className, $action)
-    {
-        $funcRef = new ReflectionMethod($className, $action);
-        $paramsRef = $funcRef->getParameters();
-
-        return $paramsRef;
-    }
-
     private function getController ($module, $controller)
     {
         $classname = $module . '_' . Roc_G::$Roc_CONTROLLER_DIRECTORY_NAME . '_' . $controller;
@@ -387,30 +334,6 @@ class Roc_Dispatcher
             $request->setActionName(Roc_G::Roc_ROUTER_DEFAULT_ACTION);
         } else {
             $request->setActionName($action);
-        }
-    }
-
-    private function _formatName ($unformatted)
-    {
-        // we have namespace
-        $segments = explode('\\', $unformatted);
-        if ($segments != null) {
-            foreach ($segments as $key => $segment) {
-                $segment = preg_replace('/[^a-z0-9 ]/', '', strtolower($segment));
-                $segments[$key] = str_replace(' ', '', ucwords($segment));
-            }
-
-            return implode('\\', $segments);
-        }
-        // we have _
-        $segments = explode('_', $unformatted);
-        if ($segments != null) {
-            foreach ($segments as $key => $segment) {
-                $segment = preg_replace('/[^a-z0-9 ]/', '', strtolower($segment));
-                $segments[$key] = str_replace(' ', '', ucwords($segment));
-            }
-
-            return implode('_', $segments);
         }
     }
 }

@@ -33,10 +33,10 @@ class Roc_Application
         // request initialization
         if (isset($_SERVER['REQUEST_METHOD'])) {
             $request = new Roc_Request_Http();
-            $reponse = new Roc_Response_Http();
+            $response = new Roc_Response_Http();
         } else {
             $request = new Roc_Request_Cli();
-            $reponse = new Roc_Response_Cli();
+            $response = new Roc_Response_Cli();
         }
         if ($request == null) {
             throw new Roc_Exception('Initialization of request failed');
@@ -45,7 +45,7 @@ class Roc_Application
         // dispatcher
         self::$_dispatcher = Roc_Dispatcher::getInstance();
         self::$_dispatcher->setRequest($request);
-        self::$_dispatcher->setResponse($reponse);
+        self::$_dispatcher->setResponse($response);
         //run
         self::$_dispatcher->dispatch();
     }
