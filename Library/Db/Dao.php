@@ -3,10 +3,7 @@
 class Db_Dao
 {
     //动态的DB库
-    protected static $DB_NAME = '';
-
-    //固定的DB库
-    const DB_NAME = '';
+    protected static $DB_NAME = 'default';
 
     const PK_FIELD = 'iAutoID';
 
@@ -27,14 +24,9 @@ class Db_Dao
         '>=' => 1,
         '<' => 1,
         '<=' => 1,
-        '+=' => 1,
-        '-=' => 1,
-        '*=' => 1,
-        '/=' => 1,
         'IN' => 1,
-        'NOT' => 1,
+        'NOTIN' => 1,
         'LIKE' => 1,
-        'FIND_IN_SET' => 1,
         'BETWEEN' => 1
     );
 
@@ -527,12 +519,6 @@ class Db_Dao
                     $mVal = $sType == 's' ? "'" . self::quote($mValue) . "'" : $mValue;
                     $sRet = "$sField $sOpt $mVal";
                     break;
-                case '+=':
-                case '-=':
-                case '*=':
-                case '/=':
-                    $sRet = "$sField = $sField {$sOpt[0]} $mValue";
-                    break;
                 case 'BETWEEN':
                     if (is_string($mValue)) {
                         $aTmp = explode(',', $mValue);
@@ -542,7 +528,7 @@ class Db_Dao
                     $sRet = "$sField BETWEEN {$aTmp[0]} AND {$aTmp[1]}";
                     break;
                 case 'IN':
-                case 'NOT':
+                case 'NOTIN':
                     if (is_array($mValue)) {
                         if ($sType == 's') {
                             $mValue = '"' . join('","', $mValue) . '"';
@@ -558,10 +544,6 @@ class Db_Dao
                     break;
                 case 'LIKE':
                     $sRet = "$sField LIKE '" . self::quote($mValue) . "'";
-                    break;
-                case 'FIND_IN_SET':
-                    $mVal = $sType == 's' ? "'" . self::quote($mValue) . "'" : $mValue;
-                    $sRet = "FIND_IN_SET($mVal, $sField)";
                     break;
             }
         } else {
