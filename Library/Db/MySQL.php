@@ -163,10 +163,9 @@ class Db_MySQL
     public function getAll ($sql, $field = null)
     {
         $res = $this->execute($sql);
-        if (! $res) {
-            return array();
+        if (empty($res)) {
+            return [];
         }
-
         $rows = $res->fetchAll(PDO::FETCH_ASSOC);
         if (empty($rows)) {
             return array();
