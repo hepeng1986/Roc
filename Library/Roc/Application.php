@@ -33,44 +33,20 @@ class Roc_Application
         // request initialization
         if (isset($_SERVER['REQUEST_METHOD'])) {
             $request = new Roc_Request_Http();
+            $reponse = new Roc_Response_Http();
         } else {
             $request = new Roc_Request_Cli();
+            $reponse = new Roc_Response_Cli();
         }
         if ($request == null) {
             throw new Roc_Exception('Initialization of request failed');
         }
         
         // dispatcher
-        $this->_dispatcher = Roc_Dispatcher::getInstance();
-        if ($this->_dispatcher == null || ! ($this->_dispatcher instanceof Roc_Dispatcher)) {
-            throw new Roc_Exception('Instantiation of dispatcher failed');
-        }
-        $this->_dispatcher->setRequest($request);
-        
-        self::$_app = $this;
-    }
-
-    /**
-     * Start Roc_Application
-     */
-    public function run ()
-    {
-        if ($this->_running == true) {
-            throw new Roc_Exception('An application instance already run');
-        } else {
-            $this->_running = true;
-            
-            return $this->_dispatcher->dispatch();
-        }
-    }
-
-    /**
-     * Get Roc_Dispatcher instance
-     *
-     * @return Roc_Dispatcher
-     */
-    public function getDispatcher ()
-    {
-        return $this->_dispatcher;
+        self::$_dispatcher = Roc_Dispatcher::getInstance();
+        self::$_dispatcher->setRequest($request);
+        self::$_dispatcher->setResponse($reponse);
+        //run
+        self::$_dispatcher->dispatch();
     }
 }
