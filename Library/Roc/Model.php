@@ -9,38 +9,33 @@
 class Roc_Model
 {
     //动态的DB库
-    protected static $DB_NAME = 'default';
-
-    const PK_FIELD = 'iAutoID';
+    protected static $dbName = 'default';
+    //动态表名
+    protected static $tableName = '';
+    //主键
+    protected static $pkField = 'iAutoID';
 
     /**
      * 取得Dbh连接
      */
     public static function getDbh ()
     {
-        return Db_Dao::getInstance(self::$DB_NAME);
+        return Db_Dao::getInstance(static::$dbName);
     }
     /*
      * 切换DB
      */
     public static function changeDb($sDbName)
     {
-        self::$DB_NAME = $sDbName;
+        static::$dbName = $sDbName;
     }
 
     /**
      * 取得表名
      */
-    public static function getTable ($iPKID = null)
+    public static function getTable ()
     {
-        $class = get_called_class();
-        if ($class::TABLE_NUM > 1 && isset($iPKID)) {
-            $sTblName = $class::TABLE_NAME . '_' . ($iPKID % $class::TABLE_NUM);
-        } else {
-            $sTblName = $class::TABLE_NAME;
-        }
-
-        return $sTblName;
+        return static::$tableName;
     }
 
     /**
@@ -48,19 +43,137 @@ class Roc_Model
      */
     public static function getPKField ()
     {
-        $class = get_called_class();
-        return $class::PK_FIELD;
+        return static::$pkField;
     }
 
+    /**
+     * 获取数量
+     *
+     * @param array $aParam
+     * @return int
+     */
+    public static function getCnt ($aParam)
+    {
+        $iCount = 0;
+        if(!empty($aParam["group"])){
+            $aParam["field"] = "1";
+            $aRet = self::query("getCol",$aParam);
+            $iCount = count($aRet);
+        }else{
+            $aParam["field"] = "COUNT(*)";
+            $iCount = self::query("getOne",$aParam);
+        }
+        return $iCount;
+    }
+    /**
+     * 获取数量
+     *
+     * @param array $aParam
+     * @return int
+     */
+    public static function getOne ($aParam, $sField = null)
+    {
+        if(Roc_G::emptyZero($sField)){
+            return [];
+        }
+        $aParam["field"] = $sField;
+        return self::query("getOne",$aParam);
+    }
+    /**
+     * 获取数量
+     *
+     * @param array $aParam
+     * @return int
+     */
+    public static function getCol ($aParam, $sField = null)
+    {
+        if(Roc_G::emptyZero($sField)){
+            return [];
+        }
+        $aParam["field"] = $sField;
+        return self::query("getCol",$aParam);
+    }
+
+    /**
+     * 获取数量
+     *
+     * @param array $aParam
+     * @return int
+     */
+    public static function getPair ($aParam, $sKeyField = null, $sValueField = null)
+    {
+        if (Roc_G::emptyZero($sKeyField) || Roc_G::emptyZero($sValueField)()) {
+            return [];
+        }
+        $sField = "{$sKeyField},{$sValueField}";
+        $aParam["field"] = $sField;
+
+        return self::query("getPair",$aParam);
+    }
+
+    /**
+     * 获取数量
+     *
+     * @param array $aParam
+     * @return int
+     */
+    public static function getRow ($aParam)
+    {
+        $aParam["limit"] = "0,1";
+        return self::query("getRow",$aParam);
+    }
+    /**
+     * 获取列表
+     *
+     * @param array $aParam
+     * @param string $sOrder
+     * @return array
+     */
+    public static function getAll ($aParam, $sAssosField = null,$bLimit = true)
+    {
+        if($bLimit){
+            $aParam["limit"] = "0,2000";
+        }
+        return self::query("getAll",$aParam,$sAssosField);
+    }
+    /**
+     * 执行SQL，还回结果
+     *
+     * @param string $sSQL
+     * @param string $sMethod
+     *            (all,row,one,col,pair,query)
+     * @param string $sField
+     */
+    private static function query ($sType,$aParam,$sAssocField = null)
+    {
+        $aMethod = ['getAll','getOne','getRow','getCol','getPair'];
+        if(!in_array($sType,$aMethod)){
+            return [];
+        }
+        $oDb = self::getDbh();
+        if(!method_exists($oDb,$sType)){
+            return "getOne" == $sType?0:[];
+        }
+        return $oDb->$sType($aParam,$sAssocField);
+    }
     /**
      * 获取主键数据
      *
      * @param int $iPKID
      * @return array/null
      */
-    public static function getDetail ($iPKID)
+    public static function getDetail ($iPKID,$sField="*")
     {
-        return self::getDbh()->getRow("SELECT * FROM " . self::getTable() . " WHERE " . self::getPKField() . "='$iPKID'");
+        $aParam["table"] = self::getTable();
+        if(empty($sField)){
+            $aParam["field"] = "*";
+        }else{
+            $aParam["field"] = $sField;
+        }
+        //获取pk
+        $pkField = self::getPKField();
+        $aParam["where"][$pkField] = $iPKID;
+        return self::query("getRow",$aParam);
     }
 
     /**
@@ -69,23 +182,16 @@ class Roc_Model
      * @param array $aPKIDs
      * @return array
      */
-    public static function getPKIDList ($aPKIDs, $bUsePKID = false)
+    public static function getPKIDList ($pkFieldList, $bUsePKID = false)
     {
         if (empty($aPKIDs)) {
             return [];
         }
+        $pkField = self::getPKField();
+        $sAssocField = $bUsePKID?$pkField:null;
+        $aParam["{$pkField} IN"] = $pkFieldList;
 
-        $sIDs = $aPKIDs;
-        if (is_array($aPKIDs)) {
-            $sIDs = join(',', $aPKIDs);
-        }
-
-        $sField = null;
-        if ($bUsePKID) {
-            $sField = self::getPKField();
-        }
-
-        return self::getDbh()->getAll("SELECT * FROM " . self::getTable() . " WHERE " . self::getPKField() . " IN($sIDs)", $sField);
+        return self::query("getAll",$aParam,$sAssocField);
     }
 
     /**
@@ -186,18 +292,6 @@ class Roc_Model
      * @param string $sOrder
      * @return array
      */
-    public static function getAll ($aParam, $sField = null)
-    {
-        return self::getDbh()->getAll(self::_buildSQL($aParam), $sField);
-    }
-
-    /**
-     * 获取列表
-     *
-     * @param array $aParam
-     * @param string $sOrder
-     * @return array
-     */
     public static function getList ($aParam, $iPage, $sOrder = '', $iPageSize = 20, $sUrl = '', $aArg = array(), $bReturnPager = true, $sColunm = '*')
     {
         $iPage = max($iPage, 1);
@@ -236,64 +330,6 @@ class Roc_Model
         return $aRet;
     }
 
-    /**
-     * 获取数量
-     *
-     * @param array $aParam
-     * @return int
-     */
-    public static function getCnt ($aParam)
-    {
-        return self::getDbh()->getOne(self::_buildSQL($aParam, 'COUNT(*)'));
-    }
-
-    /**
-     * 获取数量
-     *
-     * @param array $aParam
-     * @return int
-     */
-    public static function getOne ($aParam, $sField = null)
-    {
-        return self::getDbh()->getOne(self::_buildSQL($aParam, $sField, null, 1));
-    }
-
-    /**
-     * 获取数量
-     *
-     * @param array $aParam
-     * @return int
-     */
-    public static function getCol ($aParam, $sField = null)
-    {
-        return self::getDbh()->getCol(self::_buildSQL($aParam, $sField));
-    }
-
-    /**
-     * 获取数量
-     *
-     * @param array $aParam
-     * @return int
-     */
-    public static function getPair ($aParam, $sKeyField = null, $sValueField = null)
-    {
-        $sField = null;
-        if (!empty($sKeyField)) {
-            $sField = "$sKeyField,$sValueField";
-        }
-        return self::getDbh()->getPair(self::_buildSQL($aParam, $sField));
-    }
-
-    /**
-     * 获取数量
-     *
-     * @param array $aParam
-     * @return int
-     */
-    public static function getRow ($aParam, $sFields = '*')
-    {
-        return self::getDbh()->getRow(self::_buildSQL($aParam, $sFields, null, 1));
-    }
 
     /**
      * 返回结果并缓存数据
@@ -322,34 +358,7 @@ class Roc_Model
         return Util_Common::getCache();
     }
 
-    /**
-     * 执行SQL，还回结果
-     *
-     * @param string $sSQL
-     * @param string $sMethod
-     *            (all,row,one,col,pair,query)
-     * @param string $sField
-     */
-    public static function query ($sSQL, $sType = 'query', $sField = null, $bCache = false)
-    {
-        $aMethod = array(
-            'all' => 'getAll',
-            'one' => 'getOne',
-            'row' => 'getRow',
-            'col' => 'getCol',
-            'pair' => 'getPair',
-            'query' => 'query'
-        );
 
-        $sMethod = $aMethod[$sType];
-        if (empty($sField)) {
-            $aRet = self::getDbh()->$sMethod($sSQL);
-        } else {
-            $aRet = self::getDbh()->$sMethod($sSQL, $sField);
-        }
-
-        return $aRet;
-    }
 
     /**
      * 事务开始
@@ -556,5 +565,126 @@ class Roc_Model
     public static function getLastSQL()
     {
         return self::getDbh()->getLastSQL();
+    }
+    /**
+     * 根据查询条件，从数据库获取数据列表 getAll子集
+     * @param  sWhere  查询条件
+     * @param  sField  查询字段
+     * @param  sGroup  分组
+     * @param  sOrder  排序
+     * @param  sTable  表名，默认为调用模型的TABLE_NAME
+     * @return array
+     */
+    public static function getDataList($sWhere,$sField = "*",$sGroup="",$sOrder = "",$limit = "", $sTable = ""){
+        //设置参数
+        $aParam = [];
+        $aParam['where'] =  $sWhere;
+        if(!empty($sField) && $sField !="*"){
+            $aParam['field'] =  $sField;
+        }
+        if(!empty($sGroup)){
+            $aParam['group'] =  $sGroup;
+        }
+        if(!empty($sOrder)){
+            $aParam['order'] =  $sOrder;
+        }
+        if(!empty($limit)){
+            $aParam['limit'] = $limit;
+        }
+        if(!empty($sTable)){
+            $aParam['table'] =  $sTable;
+        }
+        return self::getAll($aParam);
+    }
+    /**
+     * 根据查询条件，从数据库获取分页数据列表
+     * @param  sWhere  查询条件
+     * @param  iPage   第几页
+     * @param  sField  查询字段
+     * @param  sGroup  分组
+     * @param  sOrder  排序
+     * @param  sTable  表名，默认为调用模型的TABLE_NAME
+     * @param  iPageSize  每页大小
+     * @return array  包含total,pagenum,data
+     */
+    public static function getDataListPage($sWhere,$iPage=1,$sField = "*",$sGroup="",$sOrder = "",$sTable = "",$iPageSize=20){
+        //设置参数
+        $aParam = [];
+        $aParam['where'] =  $sWhere;
+
+        if(!empty($sField) && $sField !="*"){
+            $aParam['field'] =  $sField;
+        }
+        if(!empty($sGroup)){
+            $aParam['group'] =  $sGroup;
+        }
+        if(!empty($sOrder)){
+            $aParam['order'] =  $sOrder;
+        }
+        if(!empty($sTable)){
+            $aParam['table'] =  $sTable;
+        }
+        //返回
+        $ret = [];
+        //获取记录
+        if(empty($sGroup)){
+            $ret['iTotal'] = self::getCnt(['where'=>$sWhere,'table'=>$sTable]);//总数
+        }else{
+            //分组不可以用count(*)
+            $temp = self::getAll(['where'=>$sWhere,'table'=>$sTable,'group'=>$sGroup,'field'=>$sGroup]);
+            $ret['iTotal'] = count($temp);
+        }
+        //获取分页数据
+        $iPage = intval($iPage) ? intval($iPage) : 1;
+        $iPageSize = intval($iPageSize) ? intval($iPageSize) : 20;
+        $aParam['limit'] = ($iPage - 1) * $iPageSize . ',' . $iPageSize;
+
+        //获取数据
+        $ret['iPageNum'] = ceil($ret['iTotal']/$iPageSize);
+        $ret['aList'] = self::getAll($aParam);
+
+        return $ret;
+    }
+    /**
+     * 根据查询条件，从数据库获取数据列表 返回关联数组 getAll子集
+     * @param  sWhere  查询条件
+     * @param  mField  查询字段 mField[0] 字段字符串,mField[1] 字段名
+     * @param  sGroup  分组
+     * @param  sOrder  排序
+     * @param  sTable  表名，默认为调用模型的TABLE_NAME
+     * @return array
+     */
+    public static function getDataListAssoc($sWhere,$mField = "*",$sGroup="",$sOrder = "",$sTable = ""){
+        //设置参数
+        $assoc = null;
+        $aParam = [];
+        $aParam['where'] =  $sWhere;
+        //获取key
+        if(is_string($mField)){
+            if(!empty($mField) && $mField !="*"){
+                $aParam['field'] =  $mField;
+            }
+        }elseif(is_array($mField)){
+            if(!empty($mField[0]) && $mField[0] !="*"){
+                $aParam['field'] =  $mField[0];
+            }
+            if(!empty($mField[1])){
+                $assoc = $mField[1];
+            }
+        }
+        //其他条件
+        if(!empty($sGroup)){
+            $aParam['group'] =  $sGroup;
+        }
+        if(!empty($sOrder)){
+            $aParam['order'] =  $sOrder;
+        }
+        if(!empty($sTable)){
+            $aParam['table'] =  $sTable;
+        }
+        return self::getAll($aParam,$assoc);
+    }
+    public static function  closeTranction(){
+        self::getDbh()->closeTranction();
     }
 }

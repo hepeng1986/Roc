@@ -464,4 +464,13 @@ class Roc_G
         //没找到
         return null;
     }
+    /*
+     * empty
+     */
+    public static function emptyZero($value){
+        if($value === 0 || $value === "0"){
+            return false;
+        }
+        return empty($value);
+    }
 }
