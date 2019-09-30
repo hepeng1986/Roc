@@ -13,7 +13,7 @@ define('LIB_PATH', ROOT_PATH.'Library'.DS);
 define('ROC_PATH', LIB_PATH.'Roc'.DS);
 define('VERDOR_PATH', ROOT_PATH.'vendor'.DS);
 define('CONF_PATH', ROOT_PATH.'Conf'.DS);
-define('TOOL_PATH', ROOT_PATH.'Tools'.DS);
+define('OTHER_PATH', ROOT_PATH.'Other'.DS);
 
 //默认日志级别
 define('LOG_LEVEL',     2);
