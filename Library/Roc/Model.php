@@ -137,6 +137,43 @@ class Roc_Model
         return self::query("getAll",$aParam,$sAssosField);
     }
     /**
+     * 获取主键数据
+     *
+     * @param int $iPKID
+     * @return array/null
+     */
+    public static function getDetail ($pkID,$sField="*")
+    {
+        $aParam["table"] = self::getTable();
+        if(empty($sField)){
+            $aParam["field"] = "*";
+        }else{
+            $aParam["field"] = $sField;
+        }
+        //获取pk
+        $pkField = self::getPKField();
+        $aParam["where"][$pkField] = $pkID;
+        return self::query("getRow",$aParam);
+    }
+
+    /**
+     * 获取主键列表
+     *
+     * @param $pkFieldList  逗号分隔或者数组
+     * @return array
+     */
+    public static function getPKIDList ($pkIDList, $bUsePKID = false)
+    {
+        if (empty($pkIDList)) {
+            return [];
+        }
+        $pkField = self::getPKField();
+        $sAssocField = $bUsePKID?$pkField:null;
+        $aParam["{$pkField} IN"] = $pkIDList;
+
+        return self::query("getAll",$aParam,$sAssocField);
+    }
+    /**
      * 执行SQL，还回结果
      *
      * @param string $sSQL
@@ -156,88 +193,6 @@ class Roc_Model
         }
         return $oDb->$sType($aParam,$sAssocField);
     }
-    /**
-     * 获取主键数据
-     *
-     * @param int $iPKID
-     * @return array/null
-     */
-    public static function getDetail ($iPKID,$sField="*")
-    {
-        $aParam["table"] = self::getTable();
-        if(empty($sField)){
-            $aParam["field"] = "*";
-        }else{
-            $aParam["field"] = $sField;
-        }
-        //获取pk
-        $pkField = self::getPKField();
-        $aParam["where"][$pkField] = $iPKID;
-        return self::query("getRow",$aParam);
-    }
-
-    /**
-     * 获取主键列表
-     *
-     * @param array $aPKIDs
-     * @return array
-     */
-    public static function getPKIDList ($pkFieldList, $bUsePKID = false)
-    {
-        if (empty($aPKIDs)) {
-            return [];
-        }
-        $pkField = self::getPKField();
-        $sAssocField = $bUsePKID?$pkField:null;
-        $aParam["{$pkField} IN"] = $pkFieldList;
-
-        return self::query("getAll",$aParam,$sAssocField);
-    }
-
-    /**
-     * 新增数据
-     *
-     * @param array $aData
-     * @return int/false
-     */
-    public static function addData ($aData, $bQuote = true, $sType = 'INSERT')
-    {
-        if (! isset($aData['iCreateTime'])) {
-            $aData['iCreateTime'] = time();
-        }
-        if (! isset($aData['iUpdateTime'])) {
-            $aData['iUpdateTime'] = time();
-        }
-        if (! isset($aData['iStatus'])) {
-            $aData['iStatus'] = self::STATUS_VALID;
-        }
-
-        if ($sType == 'INSERT') {
-            self::getDbh()->insert(self::getTable(), $aData, $bQuote);
-        } else {
-            self::getDbh()->replace(self::getTable(), $aData, $bQuote);
-        }
-        return self::getDbh()->lastInsertId();
-    }
-
-    /**
-     * 如果记录存在则替换，不存在则插入
-     * @param unknown $aData
-     */
-    public static function replace($aData, $bQuote = true)
-    {
-        return self::addData($aData, $bQuote, 'REPLACE');
-    }
-
-    /**
-     * 插入多条
-     * @param unknown $rows
-     * @param string $type
-     */
-    public static function insertRows($aRows, $bQuote = true, $sType = 'INSERT')
-    {
-        return self::getDbh()->insertRows(self::getTable(), $aRows, $sType, $bQuote);
-    }
 
     /**
      * 更新数据
@@ -245,120 +200,87 @@ class Roc_Model
      * @param array $aData
      * @return int/false
      */
-    public static function updData ($aData, $quote=true)
+    public static function updateByPK ($pkID,$aData)
     {
-        $sPKField = self::getPKField();
-        if (! isset($aData[$sPKField])) {
-            throw new Exception("更新时没有找不到主键值");
-        }
-
-        $sWhere = "$sPKField='" . $aData[$sPKField] . "'";
-        if (! isset($aData['iUpdateTime'])) {
-            $aData['iUpdateTime'] = time();
-        }
-
-        return self::getDbh()->update(self::getTable(), $aData, $sWhere, $quote);
-    }
-
-    /**
-     * 逻辑删除
-     *
-     * @param int $iPKID
-     * @return int/false
-     */
-    public static function delData ($iPKID)
-    {
-        $sPKField = self::getPKField();
-        $sTable = self::getTable();
-        return self::getDbh()->query("UPDATE $sTable SET iStatus=" . self::STATUS_INVALID . ",iUpdateTime=" . time() . " WHERE $sPKField='$iPKID'");
+        $aParam["table"] = self::getTable();
+        //获取pk
+        $pkField = self::getPKField();
+        $aParam["where"][$pkField] = $pkID;
+        return self::execute("update",$aParam, $aData);
     }
 
     /**
      * 物理删除
      *
-     * @param unknown $iPKID
+     * @param int $iPKID
+     * @return int/false
      */
-    public static function realDel ($iPKID)
+    public static function delByPK ($pkID)
     {
-        $sPKField = self::getPKField();
-        $sTable = self::getTable();
-        return self::getDbh()->query("DELETE FROM $sTable WHERE $sPKField='$iPKID'");
+        $aParam["table"] = self::getTable();
+        //获取pk
+        $pkField = self::getPKField();
+        $aParam["where"][$pkField] = $pkID;
+        return self::execute("delete",$aParam);
     }
-
     /**
-     * 获取列表
+     * 新增数据
      *
-     * @param array $aParam
-     * @param string $sOrder
-     * @return array
+     * @param array $aData
+     * @return int/false
      */
-    public static function getList ($aParam, $iPage, $sOrder = '', $iPageSize = 20, $sUrl = '', $aArg = array(), $bReturnPager = true, $sColunm = '*')
+    public static function insert ($aData,$sType = 'INSERT')
     {
-        $iPage = max($iPage, 1);
-        $sLimit = ($iPage - 1) * $iPageSize . ',' . $iPageSize;
-        $sSQL = self::_buildSQL($aParam, $sColunm, $sOrder, $sLimit);
-
-        $aRet = array();
-        $aRet['aList'] = self::getDbh()->getAll($sSQL);
-        if ($iPage == 1 && count($aRet['aList']) < $iPageSize) {
-            $aRet['iTotal'] = count($aRet['aList']);
-
-            if ($bReturnPager) {
-                $aRet['aPager'] = null;
-            }
+        if ($sType == 'INSERT') {
+            return self::execute("insert", $aData);
         } else {
-            if (is_array($aParam)) {
-                unset($aParam['limit'], $aParam['order']);
-                if (isset($aParam['field'])) {
-                    $aParam['field'] = 'COUNT(*)';
-                }
-            }
-            $sSQL = self::_buildSQL($aParam, 'COUNT(*)');
-            $aRet['iTotal'] = self::getDbh()->getOne($sSQL);
-
-            if ($bReturnPager) {
-                if (empty($sUrl)) {
-                    $sUrl = Util_Common::getUrl(null, null, true);
-                }
-                if (empty($aArg)) {
-                    $aArg = $_REQUEST;
-                }
-                $aRet['aPager'] = Util_Page::getPage($aRet['iTotal'], $iPage, $iPageSize, $sUrl, $aArg);
-            }
+            return self::execute("replace", $aData);
         }
-
-        return $aRet;
     }
-
-
     /**
-     * 返回结果并缓存数据
-     * @param unknown $sSQL
-     * @param string $sType
+     * 插入多条
+     * @param unknown $rows
+     * @param string $type
+     */
+    public static function insertAll($aRows)
+    {
+        return self::execute("insertAll", $aRows);
+    }
+    /*
+     * 执行
+     */
+    private static function execute ($sType,$aParam,$sAssocField = null)
+    {
+        $aMethod = ['update','delete','insert','replace','insertAll'];
+        if(!in_array($sType,$aMethod)){
+            return [];
+        }
+        $oDb = self::getDbh();
+        if(!method_exists($oDb,$sType)){
+            return false;
+        }
+        return $oDb->$sType($aParam,$sAssocField);
+    }
+    /**
+     * 执行SQL，还回结果
+     *
+     * @param string $sSQL
+     * @param string $sMethod
+     *            (all,row,one,col,pair,query)
      * @param string $sField
      */
-    public static function getSQLCache ($sSQL, $iExpire = 3600, $sType = 'all', $sField = null, $sPrefix = '')
+    public static function querySQL ($sSQL,$sAssocField)
     {
-        $oCache = self::getCache();
-        $sCacheKey = $sPrefix . md5($sSQL);
-        $aRet = $oCache->get($sCacheKey);
-        if (empty($aRet)) {
-            $aRet = self::query($sSQL, $sType, $sField);
-            $oCache->set($sCacheKey, $aRet, $iExpire);
-        }
-
-        return $aRet;
+        $oDb = self::getDbh();
+        return $oDb->querySQL($sSQL,$sAssocField);
     }
-
-    /**
-     * 取得DB的Cache
+    /*
+     * 执行
      */
-    public static function getCache()
+    public static function executeSQL ($sSQL)
     {
-        return Util_Common::getCache();
+        return 0;
     }
-
-
 
     /**
      * 事务开始
