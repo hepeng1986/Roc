@@ -56,7 +56,7 @@ class Roc_Model
     {
         $iCount = 0;
         if(!empty($aParam["group"])){
-            $aParam["field"] = "1";
+            $aParam["field"] = $aParam["group"];
             $aRet = self::query("getCol",$aParam);
             $iCount = count($aRet);
         }else{
@@ -131,7 +131,7 @@ class Roc_Model
      */
     public static function getAll ($aParam, $sAssosField = null,$bLimit = true)
     {
-        if($bLimit){
+        if($bLimit && empty($aParam["limit"])){
             $aParam["limit"] = "0,2000";
         }
         return self::query("getAll",$aParam,$sAssosField);
@@ -305,182 +305,12 @@ class Roc_Model
     {
         return self::getDbh()->rollback();
     }
-
-    /**
-     * 构建过滤的条件
-     *
-     * @param array $aParam
-     * @return string
+    /*
+     * 关闭一次性事务
      */
-    private static function _buildSQL ($aParam, $sField = '*', $sOrder = null, $sLimit = null)
-    {
-        // 如果传入的本身是一条SELECT的SQL，则直接返回，用于兼容原生的getOne,getCol,getPair,getAll,getRow
-        if (is_string($aParam)) {
-            $aParam = trim($aParam);
-            if (strtoupper(substr($aParam, 0, 6)) == 'SELECT') {
-                $sSQL = $aParam;
-                if (!empty($sField) && $sField != '*') {
-                    $sSQL = str_replace('*', $sField, $sSQL);
-                }
-                if ($sOrder != '' && false === stripos($sSQL, 'ORDER BY')) {
-                    $sSQL .= ' ORDER BY ' . $sOrder;
-                }
-                if ($sLimit != '' && false === stripos($sSQL, 'LIMIT')) {
-                    $sSQL .= ' LIMIT ' . $sLimit;
-                }
-                return $sSQL;
-            }
-        }
-
-        $sTable = '';
-        $sGroup = '';
-        $sWhere = '';
-        $aWhere = array();
-        if (is_array($aParam)) {
-            if (isset($aParam['where']) || isset($aParam['limit']) || isset($aParam['order'])) {
-                if (isset($aParam['where']) && is_array($aParam['where'])) {
-                    $aWhere = $aParam['where'];
-                } elseif (isset($aParam['where'])) {
-                    $sWhere = $aParam['where'];
-                }
-
-                if (isset($aParam['order'])) {
-                    $sOrder = $aParam['order'];
-                }
-                if (isset($aParam['limit'])) {
-                    $sLimit = $aParam['limit'];
-                }
-                if (isset($aParam['group'])) {
-                    $sGroup = $aParam['group'];
-                }
-                if (isset($aParam['field'])) {
-                    $sField = $aParam['field'];
-                }
-                if (isset($aParam['table'])) {
-                    $sTable = $aParam['table'];
-                }
-            } else {
-                $aWhere = $aParam;
-            }
-        } else {
-            $sWhere = $aParam;
-        }
-        if (! empty($aWhere)) {
-            $aTmpWhere = array();
-            foreach ($aWhere as $k => $v) {
-                if (is_numeric($k) || $k == 'sWhere') {    //兼容,array(0 => 'sField=1', 1 => 'sField>5')这种写法
-                    $aTmpWhere[] = $v;
-                } else {
-                    $aTmpWhere[] = self::_buildField($k, $v);
-                }
-            }
-            $sWhere = join(' AND ', $aTmpWhere);
-        }
-
-        if (! empty($sWhere)) {
-            $sWhere = 'WHERE ' . $sWhere;
-        }
-
-        if (! empty($sOrder)) {
-            $sOrder = 'ORDER BY ' . $sOrder;
-        }
-        if (! empty($sLimit)) {
-            $sLimit = 'LIMIT ' . $sLimit;
-        }
-        if (! empty($sGroup)) {
-            $sGroup = 'GROUP BY ' . $sGroup;
-        }
-
-        if (empty($sTable)) {
-            $sTable = self::getTable();
-        }
-        $sSQL = "SELECT $sField FROM $sTable $sWhere $sGroup $sOrder $sLimit";
-        return $sSQL;
+    public static function  closeTranction(){
+        self::getDbh()->closeTranction();
     }
-
-    /**
-     * Build一个字段
-     * @param unknown $sKey
-     * @param unknown $mValue
-     * @throws Exception
-     */
-    public static function _buildField ($sKey, $mValue)
-    {
-        $sRet = '';
-        $aOpt = explode(' ', $sKey);
-        $sOpt = strtoupper(isset($aOpt[1]) ? trim($aOpt[1]) : '=');
-        $sField = trim($aOpt[0]);
-        $sType = $sField[0];
-        if (stripos($sField, '.') === false) {
-            $sField = '`' . $sField . '`';
-
-        } else {
-            $sType = substr($sField, stripos($sField, '.') + 1, 1);
-        }
-
-        if (isset(self::$_aOperators[$sOpt])) {
-            switch ($sOpt) {
-                case '=':
-                case '!=':
-                case '<>':
-                case '>':
-                case '>=':
-                case '<':
-                case '<=':
-                    $mVal = $sType == 's' ? "'" . self::quote($mValue) . "'" : $mValue;
-                    $sRet = "$sField $sOpt $mVal";
-                    break;
-                case 'BETWEEN':
-                    if (is_string($mValue)) {
-                        $aTmp = explode(',', $mValue);
-                    } else {
-                        $aTmp = $mValue;
-                    }
-                    $sRet = "$sField BETWEEN {$aTmp[0]} AND {$aTmp[1]}";
-                    break;
-                case 'IN':
-                case 'NOTIN':
-                    if (is_array($mValue)) {
-                        if ($sType == 's') {
-                            $mValue = '"' . join('","', $mValue) . '"';
-                        } else {
-                            $mValue = join(',', $mValue);
-                        }
-                    }
-                    if ($sOpt == 'IN') {
-                        $sRet = "$sField IN($mValue)";
-                    } else {
-                        $sRet = "$sField NOT IN($mValue)";
-                    }
-                    break;
-                case 'LIKE':
-                    $sRet = "$sField LIKE '" . self::quote($mValue) . "'";
-                    break;
-            }
-        } else {
-            throw new Exception("Unkown operator $sOpt!!!");
-        }
-
-        return $sRet;
-    }
-
-    /**
-     * 数据过滤
-     *
-     * @param mixed $value
-     *            要过滤的值
-     * @return string
-     */
-    public static function quote ($value)
-    {
-        if (is_int($value)) {
-            return $value;
-        } elseif (is_float($value)) {
-            return sprintf('%F', $value);
-        }
-        return addcslashes($value, "\000\n\r\\'\"\032");
-    }
-
     /**
      * 取得最后一条SQL
      */
@@ -501,7 +331,7 @@ class Roc_Model
         //设置参数
         $aParam = [];
         $aParam['where'] =  $sWhere;
-        if(!empty($sField) && $sField !="*"){
+        if(!empty($sField)){
             $aParam['field'] =  $sField;
         }
         if(!empty($sGroup)){
@@ -516,7 +346,7 @@ class Roc_Model
         if(!empty($sTable)){
             $aParam['table'] =  $sTable;
         }
-        return self::getAll($aParam);
+        return self::getAll($aParam,null,false);
     }
     /**
      * 根据查询条件，从数据库获取分页数据列表
@@ -534,7 +364,7 @@ class Roc_Model
         $aParam = [];
         $aParam['where'] =  $sWhere;
 
-        if(!empty($sField) && $sField !="*"){
+        if(!empty($sField)){
             $aParam['field'] =  $sField;
         }
         if(!empty($sGroup)){
@@ -547,25 +377,25 @@ class Roc_Model
             $aParam['table'] =  $sTable;
         }
         //返回
-        $ret = [];
+        $aRet = [];
         //获取记录
-        if(empty($sGroup)){
-            $ret['iTotal'] = self::getCnt(['where'=>$sWhere,'table'=>$sTable]);//总数
-        }else{
-            //分组不可以用count(*)
-            $temp = self::getAll(['where'=>$sWhere,'table'=>$sTable,'group'=>$sGroup,'field'=>$sGroup]);
-            $ret['iTotal'] = count($temp);
-        }
+        $aRet['iTotal'] = self::getCnt(['where'=>$sWhere,'group'=>$sGroup,'table'=>$sTable]);//总数
         //获取分页数据
         $iPage = intval($iPage) ? intval($iPage) : 1;
         $iPageSize = intval($iPageSize) ? intval($iPageSize) : 20;
         $aParam['limit'] = ($iPage - 1) * $iPageSize . ',' . $iPageSize;
 
         //获取数据
-        $ret['iPageNum'] = ceil($ret['iTotal']/$iPageSize);
-        $ret['aList'] = self::getAll($aParam);
+        if($aRet['iTotal'] <= 0){
+            $aRet['iPageNum'] = 0;
+            $aRet['aList'] = [];
+        }else{
+            $aRet['iPageNum'] = ceil($aRet['iTotal']/$iPageSize);
+            $aRet['aList'] = self::getAll($aParam,null,false);
+        }
 
-        return $ret;
+
+        return $aRet;
     }
     /**
      * 根据查询条件，从数据库获取数据列表 返回关联数组 getAll子集
@@ -576,7 +406,7 @@ class Roc_Model
      * @param  sTable  表名，默认为调用模型的TABLE_NAME
      * @return array
      */
-    public static function getDataListAssoc($sWhere,$mField = "*",$sGroup="",$sOrder = "",$sTable = ""){
+    public static function getDataListAssoc($sWhere,$mField = "*",$sGroup="",$sOrder = "",$limit = "",$sTable = ""){
         //设置参数
         $assoc = null;
         $aParam = [];
@@ -604,9 +434,6 @@ class Roc_Model
         if(!empty($sTable)){
             $aParam['table'] =  $sTable;
         }
-        return self::getAll($aParam,$assoc);
-    }
-    public static function  closeTranction(){
-        self::getDbh()->closeTranction();
+        return self::getAll($aParam,$assoc,false);
     }
 }
