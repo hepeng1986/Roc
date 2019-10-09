@@ -7,26 +7,32 @@
  */
 
 abstract class Roc_Db_Driver {
-    // PDO操作实例
-    protected $PDOStatement = null;
-    // 当前SQL指令
-    protected $queryStr   = '';
-    protected $modelSql   = array();
-    // 最后插入ID
-    protected $lastInsID  = null;
-    // 返回或者影响记录数
-    protected $numRows    = 0;
-    // 事务指令数
-    protected $transTimes = 0;
-    // 错误信息
-    protected $error      = '';
-    // 数据库连接ID 支持多个连接
-    protected $linkID     = array();
-    // 当前连接ID
-    protected $_linkID    = null;
+    //数据库名
+    private $sDbName;
+    //事务计数
+    private $iTransaction = 0;
+    //数据库连接
+    private $oDbh = null;
+    //连接时间
+    private $iPingTime = 0;
+    //实例
+    protected static $_aInstance;
+    /**
+     * 执行sql数组
+     */
+    private static $_aSQL = array();
 
+    private static $_iQueryCnt = 0;
+
+    private static $_oDebug = null;
+
+    private static $_aADUSQL = array();
+
+    private static $_iConnentTime = 0;
+
+    private static $_iUseTime = 0;
     // 查询表达式
-    protected $selectSql  = 'SELECT%DISTINCT% %FIELD% FROM %TABLE%%FORCE%%JOIN%%WHERE%%GROUP%%HAVING%%ORDER%%LIMIT% %UNION%%LOCK%%COMMENT%';
+    protected $selectSql  = "SELECT %FIELD% FROM %TABLE% %JOIN% %WHERE% %GROUP% %HAVING% %ORDER% %LIMIT% ";
     // 查询次数
     protected $queryTimes   =   0;
     // 执行次数
@@ -40,19 +46,30 @@ abstract class Roc_Db_Driver {
     );
     protected $bind         =   array(); // 参数绑定
 
+    //初始化
     public function __construct ($sDbName)
     {
-        $this->iPingTime = time();
         $this->sDbName = $sDbName;
-        $this->connect();
-    }
-
-    public function connect ()
-    {
         $iStartTime = microtime(true);
-        $this->oDbh = $this->getPDO($this->sDbName);
+        $this->oDbh = $this->connect($this->sDbName);
         $iEndTime = microtime(true);
         self::$_iConnentTime = round(($iEndTime - $iStartTime)*1000,2);
+    }
+
+    public function connect ($sDbName)
+    {
+        //是有已连接过
+        if (!isset(self::$_aInstance[$sDbName])) {
+            $aConf = Roc_G::getConf($sDbName, 'Database');
+            $aOption = [
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_WARNING,
+                PDO::MYSQL_ATTR_USE_BUFFERED_QUERY => true,
+                PDO::ATTR_STRINGIFY_FETCHES => false
+            ];
+            self::$_aInstance[$sDbName] = new PDO($aConf['dsn'], $aConf['user'], $aConf['passwd'], $aOption);
+        }
+
+        return self::$_aInstance[$sDbName];
     }
 
     /**
@@ -316,25 +333,7 @@ abstract class Roc_Db_Driver {
      * @return string
      */
     protected function parseField($fields) {
-        if(is_string($fields) && '' !== $fields) {
-            $fields    = explode(',',$fields);
-        }
-        if(is_array($fields)) {
-            // 完善数组方式传字段名的支持
-            // 支持 'field1'=>'field2' 这样的字段别名定义
-            $array   =  array();
-            foreach ($fields as $key=>$field){
-                if(!is_numeric($key))
-                    $array[] =  $this->parseKey($key).' AS '.$this->parseKey($field);
-                else
-                    $array[] =  $this->parseKey($field);
-            }
-            $fieldsStr = implode(',', $array);
-        }else{
-            $fieldsStr = '*';
-        }
-        //TODO 如果是查询全部字段，并且是join的方式，那么就把要查的表加个别名，以免字段被覆盖
-        return $fieldsStr;
+        return $fields;
     }
 
     /**
@@ -343,21 +342,8 @@ abstract class Roc_Db_Driver {
      * @param mixed $table
      * @return string
      */
-    protected function parseTable($tables) {
-        if(is_array($tables)) {// 支持别名定义
-            $array   =  array();
-            foreach ($tables as $table=>$alias){
-                if(!is_numeric($table))
-                    $array[] =  $this->parseKey($table).' '.$this->parseKey($alias);
-                else
-                    $array[] =  $this->parseKey($alias);
-            }
-            $tables  =  $array;
-        }elseif(is_string($tables)){
-            $tables  =  explode(',',$tables);
-            array_walk($tables, array(&$this, 'parseKey'));
-        }
-        return implode(',',$tables);
+    protected function parseTable($table) {
+        return $table;
     }
 
     /**
@@ -367,169 +353,95 @@ abstract class Roc_Db_Driver {
      * @return string
      */
     protected function parseWhere($where) {
-        $whereStr = '';
-        if(is_string($where)) {
-            // 直接使用字符串条件
-            $whereStr = $where;
-        }else{ // 使用数组表达式
-            $operate  = isset($where['_logic'])?strtoupper($where['_logic']):'';
-            if(in_array($operate,array('AND','OR','XOR'))){
-                // 定义逻辑运算规则 例如 OR XOR AND NOT
-                $operate    =   ' '.$operate.' ';
-                unset($where['_logic']);
-            }else{
-                // 默认进行 AND 运算
-                $operate    =   ' AND ';
-            }
-            foreach ($where as $key=>$val){
-                if(is_numeric($key)){
-                    $key  = '_complex';
+        $sWhere = '';
+        if(is_string($where)){
+            $sWhere = $where;
+        }elseif(is_array($where)){
+            $aTmpWhere = array();
+            foreach ($where as $k => $v) {
+                if (is_numeric($k)) {    //兼容,array(0 => 'sField=1', 1 => 'sField>5')这种写法
+                    $aTmpWhere[] = $v;
+                } else {
+                    $aTmpWhere[] = self::_buildField($k, $v);
                 }
-                if(0===strpos($key,'_')) {
-                    // 解析特殊条件表达式
-                    $whereStr   .= $this->parseThinkWhere($key,$val);
-                }else{
-                    // 查询字段的安全过滤
-                    // if(!preg_match('/^[A-Z_\|\&\-.a-z0-9\(\)\,]+$/',trim($key))){
-                    //     E(L('_EXPRESS_ERROR_').':'.$key);
-                    // }
-                    // 多条件支持
-                    $multi  = is_array($val) &&  isset($val['_multi']);
-                    $key    = trim($key);
-                    if(strpos($key,'|')) { // 支持 name|title|nickname 方式定义查询字段
-                        $array =  explode('|',$key);
-                        $str   =  array();
-                        foreach ($array as $m=>$k){
-                            $v =  $multi?$val[$m]:$val;
-                            $str[]   = $this->parseWhereItem($this->parseKey($k),$v);
-                        }
-                        $whereStr .= '( '.implode(' OR ',$str).' )';
-                    }elseif(strpos($key,'&')){
-                        $array =  explode('&',$key);
-                        $str   =  array();
-                        foreach ($array as $m=>$k){
-                            $v =  $multi?$val[$m]:$val;
-                            $str[]   = '('.$this->parseWhereItem($this->parseKey($k),$v).')';
-                        }
-                        $whereStr .= '( '.implode(' AND ',$str).' )';
-                    }else{
-                        $whereStr .= $this->parseWhereItem($this->parseKey($key),$val);
-                    }
-                }
-                $whereStr .= $operate;
             }
-            $whereStr = substr($whereStr,0,-strlen($operate));
+            $sWhere = join(' AND ', $aTmpWhere);
         }
-        return empty($whereStr)?'':' WHERE '.$whereStr;
+        return $sWhere;
     }
-
-    // where子单元分析
-    protected function parseWhereItem($key,$val) {
-        $whereStr = '';
-        if(is_array($val)) {
-            if(is_string($val[0])) {
-                $exp	=	strtolower($val[0]);
-                if(preg_match('/^(eq|neq|gt|egt|lt|elt)$/',$exp)) { // 比较运算
-                    $whereStr .= $key.' '.$this->exp[$exp].' '.$this->parseValue($val[1]);
-                }elseif(preg_match('/^(notlike|like)$/',$exp)){// 模糊查找
-                    if(is_array($val[1])) {
-                        $likeLogic  =   isset($val[2])?strtoupper($val[2]):'OR';
-                        if(in_array($likeLogic,array('AND','OR','XOR'))){
-                            $like       =   array();
-                            foreach ($val[1] as $item){
-                                $like[] = $key.' '.$this->exp[$exp].' '.$this->parseValue($item);
-                            }
-                            $whereStr .= '('.implode(' '.$likeLogic.' ',$like).')';
-                        }
-                    }else{
-                        $whereStr .= $key.' '.$this->exp[$exp].' '.$this->parseValue($val[1]);
-                    }
-                }elseif('bind' == $exp ){ // 使用表达式
-                    $whereStr .= $key.' = :'.$val[1];
-                }elseif('exp' == $exp ){ // 使用表达式
-                    $whereStr .= $key.' '.$val[1];
-                }elseif(preg_match('/^(notin|not in|in)$/',$exp)){ // IN 运算
-                    if(isset($val[2]) && 'exp'==$val[2]) {
-                        $whereStr .= $key.' '.$this->exp[$exp].' '.$val[1];
-                    }else{
-                        if(is_string($val[1])) {
-                            $val[1] =  explode(',',$val[1]);
-                        }
-                        $zone      =   implode(',',$this->parseValue($val[1]));
-                        $whereStr .= $key.' '.$this->exp[$exp].' ('.$zone.')';
-                    }
-                }elseif(preg_match('/^(notbetween|not between|between)$/',$exp)){ // BETWEEN运算
-                    $data = is_string($val[1])? explode(',',$val[1]):$val[1];
-                    $whereStr .=  $key.' '.$this->exp[$exp].' '.$this->parseValue($data[0]).' AND '.$this->parseValue($data[1]);
-                }else{
-                    E(L('_EXPRESS_ERROR_').':'.$val[0]);
-                }
-            }else {
-                $count = count($val);
-                $rule  = isset($val[$count-1]) ? (is_array($val[$count-1]) ? strtoupper($val[$count-1][0]) : strtoupper($val[$count-1]) ) : '' ;
-                if(in_array($rule,array('AND','OR','XOR'))) {
-                    $count  = $count -1;
-                }else{
-                    $rule   = 'AND';
-                }
-                for($i=0;$i<$count;$i++) {
-                    $data = is_array($val[$i])?$val[$i][1]:$val[$i];
-                    if('exp'==strtolower($val[$i][0])) {
-                        $whereStr .= $key.' '.$data.' '.$rule.' ';
-                    }else{
-                        $whereStr .= $this->parseWhereItem($key,$val[$i]).' '.$rule.' ';
-                    }
-                }
-                $whereStr = '( '.substr($whereStr,0,-4).' )';
-            }
-        }else {
-            //对字符串类型字段采用模糊匹配
-            $likeFields   =   $this->config['db_like_fields'];
-            if($likeFields && preg_match('/^('.$likeFields.')$/i',$key)) {
-                $whereStr .= $key.' LIKE '.$this->parseValue('%'.$val.'%');
-            }else {
-                $whereStr .= $key.' = '.$this->parseValue($val);
-            }
-        }
-        return $whereStr;
-    }
-
     /**
-     * 特殊条件分析
-     * @access protected
-     * @param string $key
-     * @param mixed $val
-     * @return string
+     * Build一个字段
+     * @param unknown $sKey
+     * @param unknown $mValue
+     * @throws Exception
      */
-    protected function parseThinkWhere($key,$val) {
-        $whereStr   = '';
-        switch($key) {
-            case '_string':
-                // 字符串模式查询条件
-                $whereStr = $val;
-                break;
-            case '_complex':
-                // 复合查询条件
-                $whereStr = substr($this->parseWhere($val),6);
-                break;
-            case '_query':
-                // 字符串模式查询条件
-                parse_str($val,$where);
-                if(isset($where['_logic'])) {
-                    $op   =  ' '.strtoupper($where['_logic']).' ';
-                    unset($where['_logic']);
-                }else{
-                    $op   =  ' AND ';
-                }
-                $array   =  array();
-                foreach ($where as $field=>$data)
-                    $array[] = $this->parseKey($field).' = '.$this->parseValue($data);
-                $whereStr   = implode($op,$array);
-                break;
-        }
-        return '( '.$whereStr.' )';
-    }
+    public static function _buildField ($sKey, $mValue)
+    {
+        $sRet = '';
+        $aOpt = explode(' ', $sKey);
+        $sOpt = strtoupper(isset($aOpt[1]) ? trim($aOpt[1]) : '=');
+        $sField = trim($aOpt[0]);
+        $sType = $sField[0];
+        if (stripos($sField, '.') === false) {
+            $sField = '`' . $sField . '`';
 
+        } else {
+            $sType = substr($sField, stripos($sField, '.') + 1, 1);
+        }
+
+        if (isset(self::$_aOperators[$sOpt])) {
+            switch ($sOpt) {
+                case '=':
+                case '!=':
+                case '<>':
+                case '>':
+                case '>=':
+                case '<':
+                case '<=':
+                    $mVal = "'{$mValue}'";
+                    $sRet = "$sField $sOpt $mVal";
+                    break;
+                case '+=':
+                case '-=':
+                case '*=':
+                case '/=':
+                    $sRet = "$sField = $sField {$sOpt[0]} $mValue";
+                    break;
+                case 'BETWEEN':
+                    if (is_string($mValue)) {
+                        $aTmp = explode(',', $mValue);
+                    } else {
+                        $aTmp = $mValue;
+                    }
+                    $sRet = "$sField BETWEEN {$aTmp[0]} AND {$aTmp[1]}";
+                    break;
+                case 'IN':
+                case 'NOT':
+                    if (is_array($mValue)) {
+                        if ($sType == 's') {
+                            $mValue = '"' . join('","', $mValue) . '"';
+                        } else {
+                            $mValue = join(',', $mValue);
+                        }
+                    }
+                    if ($sOpt == 'IN') {
+                        $sRet = "$sField IN($mValue)";
+                    } else {
+                        $sRet = "$sField NOT IN($mValue)";
+                    }
+                    break;
+                case 'LIKE':
+                    $sRet = "$sField LIKE '" . self::quote($mValue) . "'";
+                    break;
+                case 'FIND_IN_SET':
+                    $mVal = $sType == 's' ? "'" . self::quote($mValue) . "'" : $mValue;
+                    $sRet = "FIND_IN_SET($mVal, $sField)";
+                    break;
+            }
+        }
+
+        return $sRet;
+    }
     /**
      * limit分析
      * @access protected
@@ -561,17 +473,6 @@ abstract class Roc_Db_Driver {
      * @return string
      */
     protected function parseOrder($order) {
-        if(is_array($order)) {
-            $array   =  array();
-            foreach ($order as $key=>$val){
-                if(is_numeric($key)) {
-                    $array[] =  $this->parseKey($val);
-                }else{
-                    $array[] =  $this->parseKey($key).' '.$val;
-                }
-            }
-            $order   =  implode(',',$array);
-        }
         return !empty($order)?  ' ORDER BY '.$order:'';
     }
 
@@ -707,33 +608,6 @@ abstract class Roc_Db_Driver {
     }
 
     /**
-     * 删除记录
-     * @access public
-     * @param array $options 表达式
-     * @return false | integer
-     */
-    public function delete($options=array()) {
-        $this->model  =   $options['model'];
-        $this->parseBind(!empty($options['bind'])?$options['bind']:array());
-        $table  =   $this->parseTable($options['table']);
-        $sql    =   'DELETE FROM '.$table;
-        if(strpos($table,',')){// 多表删除支持USING和JOIN操作
-            if(!empty($options['using'])){
-                $sql .= ' USING '.$this->parseTable($options['using']).' ';
-            }
-            $sql .= $this->parseJoin(!empty($options['join'])?$options['join']:'');
-        }
-        $sql .= $this->parseWhere(!empty($options['where'])?$options['where']:'');
-        if(!strpos($table,',')){
-            // 单表删除支持order和limit
-            $sql .= $this->parseOrder(!empty($options['order'])?$options['order']:'')
-                .$this->parseLimit(!empty($options['limit'])?$options['limit']:'');
-        }
-        $sql .=   $this->parseComment(!empty($options['comment'])?$options['comment']:'');
-        return $this->execute($sql,!empty($options['fetch_sql']) ? true : false);
-    }
-
-    /**
      * 查找记录
      * @access public
      * @param array $options 表达式
@@ -753,16 +627,8 @@ abstract class Roc_Db_Driver {
      * @param array $options 表达式
      * @return string
      */
-    public function buildSelectSql($options=array()) {
-        if(isset($options['page'])) {
-            // 根据页数计算limit
-            list($page,$listRows)   =   $options['page'];
-            $page    =  $page>0 ? $page : 1;
-            $listRows=  $listRows>0 ? $listRows : (is_numeric($options['limit'])?$options['limit']:20);
-            $offset  =  $listRows*($page-1);
-            $options['limit'] =  $offset.','.$listRows;
-        }
-        $sql  =   $this->parseSql($this->selectSql,$options);
+    private function _buildSQL($aOptions) {
+        $sql  =   $this->parseParam($this->selectSql,$aOptions);
         return $sql;
     }
 
@@ -772,12 +638,11 @@ abstract class Roc_Db_Driver {
      * @param array $options 表达式
      * @return string
      */
-    public function parseSql($sql,$options=array()){
+    public function parseParam($sql,$options=array()){
         $sql   = str_replace(
             array('%TABLE%','%DISTINCT%','%FIELD%','%JOIN%','%WHERE%','%GROUP%','%HAVING%','%ORDER%','%LIMIT%','%UNION%','%LOCK%','%COMMENT%','%FORCE%'),
             array(
                 $this->parseTable($options['table']),
-                $this->parseDistinct(isset($options['distinct'])?$options['distinct']:false),
                 $this->parseField(!empty($options['field'])?$options['field']:'*'),
                 $this->parseJoin(!empty($options['join'])?$options['join']:''),
                 $this->parseWhere(!empty($options['where'])?$options['where']:''),
@@ -785,10 +650,6 @@ abstract class Roc_Db_Driver {
                 $this->parseHaving(!empty($options['having'])?$options['having']:''),
                 $this->parseOrder(!empty($options['order'])?$options['order']:''),
                 $this->parseLimit(!empty($options['limit'])?$options['limit']:''),
-                $this->parseUnion(!empty($options['union'])?$options['union']:''),
-                $this->parseLock(isset($options['lock'])?$options['lock']:false),
-                $this->parseComment(!empty($options['comment'])?$options['comment']:''),
-                $this->parseForce(!empty($options['force'])?$options['force']:'')
             ),$sql);
         return $sql;
     }
