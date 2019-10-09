@@ -74,7 +74,7 @@ class Roc_Model
     public static function getOne ($aParam, $sField = null)
     {
         if(Roc_G::emptyZero($sField)){
-            return [];
+            return false;
         }
         $aParam["field"] = $sField;
         return self::query("getOne",$aParam);
@@ -187,11 +187,7 @@ class Roc_Model
         if(!in_array($sType,$aMethod)){
             return [];
         }
-        $oDb = self::getDbh();
-        if(!method_exists($oDb,$sType)){
-            return "getOne" == $sType?0:[];
-        }
-        return $oDb->$sType($aParam,$sAssocField);
+        return self::getDbh()->getByType($sType,$aParam,$sAssocField);
     }
 
     /**
@@ -279,7 +275,7 @@ class Roc_Model
      */
     public static function executeSQL ($sSQL)
     {
-        return 0;
+        return false;
     }
 
     /**

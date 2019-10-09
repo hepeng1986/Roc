@@ -8,7 +8,7 @@
  * $Id: Db.php 8 2010-03-18 08:34:29Z xiejc $
  * @history
  */
-class Db_Dao
+class Roc_Db_Dao extends Roc_Db_Driver
 {
 
     private $sDbName;
@@ -121,24 +121,161 @@ class Db_Dao
      * @param unknown $type
      * @return Ambigous <multitype:, multitype:Ambigous <unknown> >|Ambigous <number, NULL>|Ambigous <multitype:, unknown>|Ambigous <multitype:, multitype:unknown >
      */
-    public function getByType($sql, $type, $key = null)
+    public function getByType($type,$aParam,$sAssocField)
     {
-    	switch ($type) {
-    		case 'col':
-    			return $this->getCol($sql);
-    		case 'one':
-    			return $this->getOne($sql);
-    		case 'row':
-    			return $this->getRow($sql);
-    		case 'pair':
-    			return $this->getPair($sql);
-    		case 'all':
-    		case 'list':
-    		default:
-    			return $this->getAll($sql, $key);
-    	}
+        //处理参数
+        $sSQL = $this->_buildSQL($aParam);
+        $this->$type($sSQL,$sAssocField);
     }
-    
+    /**
+     * 构建过滤的条件
+     *
+     * @param array $aParam
+     * @return string
+     */
+    private static function _buildSQL ($aParam)
+    {
+        $sTable = '';
+        $sGroup = '';
+        $sWhere = '';
+        $aWhere = array();
+        if (is_array($aParam)) {
+            if (isset($aParam['where']) || isset($aParam['limit']) || isset($aParam['order'])) {
+                if (isset($aParam['where']) && is_array($aParam['where'])) {
+                    $aWhere = $aParam['where'];
+                } elseif (isset($aParam['where'])) {
+                    $sWhere = $aParam['where'];
+                }
+
+                if (isset($aParam['order'])) {
+                    $sOrder = $aParam['order'];
+                }
+                if (isset($aParam['limit'])) {
+                    $sLimit = $aParam['limit'];
+                }
+                if (isset($aParam['group'])) {
+                    $sGroup = $aParam['group'];
+                }
+                if (isset($aParam['field'])) {
+                    $sField = $aParam['field'];
+                }
+                if (isset($aParam['table'])) {
+                    $sTable = $aParam['table'];
+                }
+            } else {
+                $aWhere = $aParam;
+            }
+        } else {
+            $sWhere = $aParam;
+        }
+        if (! empty($aWhere)) {
+            $aTmpWhere = array();
+            foreach ($aWhere as $k => $v) {
+                if (is_numeric($k) || $k == 'sWhere') {    //兼容,array(0 => 'sField=1', 1 => 'sField>5')这种写法
+                    $aTmpWhere[] = $v;
+                } else {
+                    $aTmpWhere[] = self::_buildField($k, $v);
+                }
+            }
+            $sWhere = join(' AND ', $aTmpWhere);
+        }
+
+        if (! empty($sWhere)) {
+            $sWhere = 'WHERE ' . $sWhere;
+        }
+
+        if (! empty($sOrder)) {
+            $sOrder = 'ORDER BY ' . $sOrder;
+        }
+        if (! empty($sLimit)) {
+            $sLimit = 'LIMIT ' . $sLimit;
+        }
+        if (! empty($sGroup)) {
+            $sGroup = 'GROUP BY ' . $sGroup;
+        }
+
+        if (empty($sTable)) {
+            $sTable = self::getTable();
+        }
+        $sSQL = "SELECT $sField FROM $sTable $sWhere $sGroup $sOrder $sLimit";
+        return $sSQL;
+    }
+
+    /**
+     * Build一个字段
+     * @param unknown $sKey
+     * @param unknown $mValue
+     * @throws Exception
+     */
+    public static function _buildField ($sKey, $mValue)
+    {
+        $sRet = '';
+        $aOpt = explode(' ', $sKey);
+        $sOpt = strtoupper(isset($aOpt[1]) ? trim($aOpt[1]) : '=');
+        $sField = trim($aOpt[0]);
+        $sType = $sField[0];
+        if (stripos($sField, '.') === false) {
+            $sField = '`' . $sField . '`';
+
+        } else {
+            $sType = substr($sField, stripos($sField, '.') + 1, 1);
+        }
+
+        if (isset(self::$_aOperators[$sOpt])) {
+            switch ($sOpt) {
+                case '=':
+                case '!=':
+                case '<>':
+                case '>':
+                case '>=':
+                case '<':
+                case '<=':
+                    $mVal = $sType == 's' ? "'" . self::quote($mValue) . "'" : $mValue;
+                    $sRet = "$sField $sOpt $mVal";
+                    break;
+                case '+=':
+                case '-=':
+                case '*=':
+                case '/=':
+                    $sRet = "$sField = $sField {$sOpt[0]} $mValue";
+                    break;
+                case 'BETWEEN':
+                    if (is_string($mValue)) {
+                        $aTmp = explode(',', $mValue);
+                    } else {
+                        $aTmp = $mValue;
+                    }
+                    $sRet = "$sField BETWEEN {$aTmp[0]} AND {$aTmp[1]}";
+                    break;
+                case 'IN':
+                case 'NOT':
+                    if (is_array($mValue)) {
+                        if ($sType == 's') {
+                            $mValue = '"' . join('","', $mValue) . '"';
+                        } else {
+                            $mValue = join(',', $mValue);
+                        }
+                    }
+                    if ($sOpt == 'IN') {
+                        $sRet = "$sField IN($mValue)";
+                    } else {
+                        $sRet = "$sField NOT IN($mValue)";
+                    }
+                    break;
+                case 'LIKE':
+                    $sRet = "$sField LIKE '" . self::quote($mValue) . "'";
+                    break;
+                case 'FIND_IN_SET':
+                    $mVal = $sType == 's' ? "'" . self::quote($mValue) . "'" : $mValue;
+                    $sRet = "FIND_IN_SET($mVal, $sField)";
+                    break;
+            }
+        } else {
+            throw new Exception("Unkown operator $sOpt!!!");
+        }
+
+        return $sRet;
+    }
     /**
      * 取得所有数据
      *
