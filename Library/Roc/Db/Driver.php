@@ -9,8 +9,6 @@
 abstract class Roc_Db_Driver {
     // PDO操作实例
     protected $PDOStatement = null;
-    // 当前操作所属的模型名
-    protected $model      = '_think_';
     // 当前SQL指令
     protected $queryStr   = '';
     protected $modelSql   = array();
@@ -27,8 +25,6 @@ abstract class Roc_Db_Driver {
     // 当前连接ID
     protected $_linkID    = null;
 
-    // 数据库表达式
-    protected $exp = array('eq'=>'=','neq'=>'<>','gt'=>'>','egt'=>'>=','lt'=>'<','elt'=>'<=','notlike'=>'NOT LIKE','like'=>'LIKE','in'=>'IN','notin'=>'NOT IN','not in'=>'NOT IN','between'=>'BETWEEN','not between'=>'NOT BETWEEN','notbetween'=>'NOT BETWEEN');
     // 查询表达式
     protected $selectSql  = 'SELECT%DISTINCT% %FIELD% FROM %TABLE%%FORCE%%JOIN%%WHERE%%GROUP%%HAVING%%ORDER%%LIMIT% %UNION%%LOCK%%COMMENT%';
     // 查询次数
@@ -192,15 +188,16 @@ abstract class Roc_Db_Driver {
      * @access public
      * @return void
      */
-    public function startTrans() {
-        $this->initConnect(true);
-        if ( !$this->_linkID ) return false;
-        //数据rollback 支持
-        if ($this->transTimes == 0) {
-            $this->_linkID->beginTransaction();
+    public function begin() {
+        if ($this->iTransaction == 0) {
+            if ($this->bUseCommit) {
+                throw new Exception('本次操作里已经使用了一次事务。', 3);
+            }
+            $this->oDbh->beginTransaction();
+            $this->bUseCommit = true;
         }
-        $this->transTimes++;
-        return ;
+        $this->iTransaction ++;
+        return true;
     }
 
     /**
@@ -209,13 +206,12 @@ abstract class Roc_Db_Driver {
      * @return boolean
      */
     public function commit() {
-        if ($this->transTimes > 0) {
-            $result = $this->_linkID->commit();
-            $this->transTimes = 0;
-            if(!$result){
-                $this->error();
-                return false;
-            }
+        if ($this->iTransaction < 1) {
+            throw new Exception('出错啦！事务不配对！', 3);
+        }
+        $this->iTransaction --;
+        if (0 == $this->iTransaction) {
+            $this->oDbh->commit();
         }
         return true;
     }
@@ -226,14 +222,9 @@ abstract class Roc_Db_Driver {
      * @return boolean
      */
     public function rollback() {
-        if ($this->transTimes > 0) {
-            $result = $this->_linkID->rollback();
-            $this->transTimes = 0;
-            if(!$result){
-                $this->error();
-                return false;
-            }
-        }
+        $this->oDbh->rollback();
+        $this->iTransaction = 0;
+        $this->bUseCommit = false;
         return true;
     }
 
@@ -274,65 +265,6 @@ abstract class Roc_Db_Driver {
      */
     public function close() {
         $this->_linkID = null;
-    }
-
-    /**
-     * 数据库错误信息
-     * 并显示当前的SQL语句
-     * @access public
-     * @return string
-     */
-    public function error() {
-        if($this->PDOStatement) {
-            $error = $this->PDOStatement->errorInfo();
-            $this->error = $error[1].':'.$error[2];
-        }else{
-            $this->error = '';
-        }
-        if('' != $this->queryStr){
-            $this->error .= "\n [ SQL语句 ] : ".$this->queryStr;
-        }
-        // 记录错误日志
-        trace($this->error,'','ERR');
-        if($this->config['debug']) {// 开启数据库调试模式
-            E($this->error);
-        }else{
-            return $this->error;
-        }
-    }
-
-    /**
-     * 设置锁机制
-     * @access protected
-     * @return string
-     */
-    protected function parseLock($lock=false) {
-        return $lock?   ' FOR UPDATE '  :   '';
-    }
-
-    /**
-     * set分析
-     * @access protected
-     * @param array $data
-     * @return string
-     */
-    protected function parseSet($data) {
-        foreach ($data as $key=>$val){
-            if(is_array($val) && 'exp' == $val[0]){
-                $set[]  =   $this->parseKey($key).'='.$val[1];
-            }elseif(is_null($val)){
-                $set[]  =   $this->parseKey($key).'=NULL';
-            }elseif(is_scalar($val)) {// 过滤非标量数据
-                if(0===strpos($val,':') && in_array($val,array_keys($this->bind)) ){
-                    $set[]  =   $this->parseKey($key).'='.$this->escapeString($val);
-                }else{
-                    $name   =   count($this->bind);
-                    $set[]  =   $this->parseKey($key).'=:'.$name;
-                    $this->bindParam($name,$val);
-                }
-            }
-        }
-        return ' SET '.implode(',',$set);
     }
 
     /**
@@ -664,46 +596,6 @@ abstract class Roc_Db_Driver {
     }
 
     /**
-     * comment分析
-     * @access protected
-     * @param string $comment
-     * @return string
-     */
-    protected function parseComment($comment) {
-        return  !empty($comment)?   ' /* '.$comment.' */':'';
-    }
-
-    /**
-     * distinct分析
-     * @access protected
-     * @param mixed $distinct
-     * @return string
-     */
-    protected function parseDistinct($distinct) {
-        return !empty($distinct)?   ' DISTINCT ' :'';
-    }
-
-    /**
-     * union分析
-     * @access protected
-     * @param mixed $union
-     * @return string
-     */
-    protected function parseUnion($union) {
-        if(empty($union)) return '';
-        if(isset($union['_all'])) {
-            $str  =   'UNION ALL ';
-            unset($union['_all']);
-        }else{
-            $str  =   'UNION ';
-        }
-        foreach ($union as $u){
-            $sql[] = $str.(is_array($u)?$this->buildSelectSql($u):$u);
-        }
-        return implode(' ',$sql);
-    }
-
-    /**
      * 参数绑定分析
      * @access protected
      * @param array $bind
@@ -711,28 +603,6 @@ abstract class Roc_Db_Driver {
      */
     protected function parseBind($bind){
         $this->bind   =   array_merge($this->bind,$bind);
-    }
-
-    /**
-     * index分析，可在操作链中指定需要强制使用的索引
-     * @access protected
-     * @param mixed $index
-     * @return string
-     */
-    protected function parseForce($index) {
-        if(empty($index)) return '';
-        if(is_array($index)) $index = join(",", $index);
-        return sprintf(" FORCE INDEX ( %s ) ", $index);
-    }
-
-    /**
-     * ON DUPLICATE KEY UPDATE 分析
-     * @access protected
-     * @param mixed $duplicate
-     * @return string
-     */
-    protected function parseDuplicate($duplicate){
-        return '';
     }
 
     /**
@@ -808,24 +678,6 @@ abstract class Roc_Db_Driver {
         }
         $sql   =  'INSERT INTO '.$this->parseTable($options['table']).' ('.implode(',', $fields).') '.implode(' UNION ALL ',$values);
         $sql   .= $this->parseComment(!empty($options['comment'])?$options['comment']:'');
-        return $this->execute($sql,!empty($options['fetch_sql']) ? true : false);
-    }
-
-    /**
-     * 通过Select方式插入记录
-     * @access public
-     * @param string $fields 要插入的数据表字段名
-     * @param string $table 要插入的数据表名
-     * @param array $option  查询数据参数
-     * @return false | integer
-     */
-    public function selectInsert($fields,$table,$options=array()) {
-        $this->model  =   $options['model'];
-        $this->parseBind(!empty($options['bind'])?$options['bind']:array());
-        if(is_string($fields))   $fields    = explode(',',$fields);
-        array_walk($fields, array($this, 'parseKey'));
-        $sql   =    'INSERT INTO '.$this->parseTable($table).' ('.implode(',', $fields).') ';
-        $sql   .= $this->buildSelectSql($options);
         return $this->execute($sql,!empty($options['fetch_sql']) ? true : false);
     }
 
@@ -978,110 +830,6 @@ abstract class Roc_Db_Driver {
     public function escapeString($str) {
         return addslashes($str);
     }
-
-    /**
-     * 设置当前操作模型
-     * @access public
-     * @param string $model  模型名
-     * @return void
-     */
-    public function setModel($model){
-        $this->model =  $model;
-    }
-
-    /**
-     * 数据库调试 记录当前SQL
-     * @access protected
-     * @param boolean $start  调试开始标记 true 开始 false 结束
-     */
-    protected function debug($start) {
-        if($this->config['debug']) {// 开启数据库调试模式
-            if($start) {
-                G('queryStartTime');
-            }else{
-                $this->modelSql[$this->model]   =  $this->queryStr;
-                //$this->model  =   '_think_';
-                // 记录操作结束时间
-                G('queryEndTime');
-                trace($this->queryStr.' [ RunTime:'.G('queryStartTime','queryEndTime').'s ]','','SQL');
-            }
-        }
-    }
-
-    /**
-     * 初始化数据库连接
-     * @access protected
-     * @param boolean $master 主服务器
-     * @return void
-     */
-    protected function initConnect($master=true) {
-        if(!empty($this->config['deploy']))
-            // 采用分布式数据库
-            $this->_linkID = $this->multiConnect($master);
-        else
-            // 默认单数据库
-            if ( !$this->_linkID ) $this->_linkID = $this->connect();
-    }
-
-    /**
-     * 连接分布式服务器
-     * @access protected
-     * @param boolean $master 主服务器
-     * @return void
-     */
-    protected function multiConnect($master=false) {
-        // 分布式数据库配置解析
-        $_config['username']    =   explode(',',$this->config['username']);
-        $_config['password']    =   explode(',',$this->config['password']);
-        $_config['hostname']    =   explode(',',$this->config['hostname']);
-        $_config['hostport']    =   explode(',',$this->config['hostport']);
-        $_config['database']    =   explode(',',$this->config['database']);
-        $_config['dsn']         =   explode(',',$this->config['dsn']);
-        $_config['charset']     =   explode(',',$this->config['charset']);
-
-        $m     =   floor(mt_rand(0,$this->config['master_num']-1));
-        // 数据库读写是否分离
-        if($this->config['rw_separate']){
-            // 主从式采用读写分离
-            if($master)
-                // 主服务器写入
-                $r  =   $m;
-            else{
-                if(is_numeric($this->config['slave_no'])) {// 指定服务器读
-                    $r = $this->config['slave_no'];
-                }else{
-                    // 读操作连接从服务器
-                    $r = floor(mt_rand($this->config['master_num'],count($_config['hostname'])-1));   // 每次随机连接的数据库
-                }
-            }
-        }else{
-            // 读写操作不区分服务器
-            $r = floor(mt_rand(0,count($_config['hostname'])-1));   // 每次随机连接的数据库
-        }
-
-        if($m != $r ){
-            $db_master  =   array(
-                'username'  =>  isset($_config['username'][$m])?$_config['username'][$m]:$_config['username'][0],
-                'password'  =>  isset($_config['password'][$m])?$_config['password'][$m]:$_config['password'][0],
-                'hostname'  =>  isset($_config['hostname'][$m])?$_config['hostname'][$m]:$_config['hostname'][0],
-                'hostport'  =>  isset($_config['hostport'][$m])?$_config['hostport'][$m]:$_config['hostport'][0],
-                'database'  =>  isset($_config['database'][$m])?$_config['database'][$m]:$_config['database'][0],
-                'dsn'       =>  isset($_config['dsn'][$m])?$_config['dsn'][$m]:$_config['dsn'][0],
-                'charset'   =>  isset($_config['charset'][$m])?$_config['charset'][$m]:$_config['charset'][0],
-            );
-        }
-        $db_config = array(
-            'username'  =>  isset($_config['username'][$r])?$_config['username'][$r]:$_config['username'][0],
-            'password'  =>  isset($_config['password'][$r])?$_config['password'][$r]:$_config['password'][0],
-            'hostname'  =>  isset($_config['hostname'][$r])?$_config['hostname'][$r]:$_config['hostname'][0],
-            'hostport'  =>  isset($_config['hostport'][$r])?$_config['hostport'][$r]:$_config['hostport'][0],
-            'database'  =>  isset($_config['database'][$r])?$_config['database'][$r]:$_config['database'][0],
-            'dsn'       =>  isset($_config['dsn'][$r])?$_config['dsn'][$r]:$_config['dsn'][0],
-            'charset'   =>  isset($_config['charset'][$r])?$_config['charset'][$r]:$_config['charset'][0],
-        );
-        return $this->connect($db_config,$r,$r == $m ? false : $db_master);
-    }
-
     /**
      * 析构方法
      * @access public

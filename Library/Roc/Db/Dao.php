@@ -644,7 +644,7 @@ class Roc_Db_Dao extends Roc_Db_Driver
             if ($this->bUseCommit) {
                 throw new Exception('本次操作里已经使用了一次事务。', 3);
             }
-            $this->execute('BEGIN');
+            beginTransaction()
             $this->bUseCommit = true;
         }
         $this->iTransaction ++;
