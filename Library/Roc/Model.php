@@ -60,6 +60,9 @@ class Roc_Model
      */
     public static function getPKField ()
     {
+        if(empty(static::$sPkField)){
+            Roc_G::throwException("无法找到主键。表名:".self::getTable());
+        }
         return static::$sPkField;
     }
 
@@ -97,7 +100,7 @@ class Roc_Model
         return self::query("getOne",$aParam);
     }
     /**
-     * 获取数量
+     * 获取一列
      *
      * @param array $aParam
      * @return int
@@ -112,7 +115,7 @@ class Roc_Model
     }
 
     /**
-     * 获取数量
+     * 获取k-v
      *
      * @param array $aParam
      * @return int
@@ -129,7 +132,7 @@ class Roc_Model
     }
 
     /**
-     * 获取数量
+     * 获取一行
      *
      * @param array $aParam
      * @return int
@@ -159,7 +162,7 @@ class Roc_Model
      * @param int $iPKID
      * @return array/null
      */
-    public static function getDetail ($pkID,$sField="*")
+    public static function getDetail ($sPk,$sField="*")
     {
         $aParam["table"] = self::getTable();
         if(empty($sField)){
@@ -169,7 +172,7 @@ class Roc_Model
         }
         //获取pk
         $pkField = self::getPKField();
-        $aParam["where"][$pkField] = $pkID;
+        $aParam["where"][$pkField] = $sPk;
         return self::query("getRow",$aParam);
     }
 
@@ -179,14 +182,14 @@ class Roc_Model
      * @param $pkFieldList  逗号分隔或者数组
      * @return array
      */
-    public static function getPKIDList ($pkIDList, $bUsePKID = false)
+    public static function getPKIDList ($sPkList, $bUsePK = false)
     {
         if (empty($pkIDList)) {
             return [];
         }
-        $pkField = self::getPKField();
-        $sAssocField = $bUsePKID?$pkField:null;
-        $aParam["{$pkField} IN"] = $pkIDList;
+        $sPkField = self::getPKField();
+        $sAssocField = $bUsePK?$sPkField:null;
+        $aParam["{$sPkField} IN"] = $sPkList;
 
         return self::query("getAll",$aParam,$sAssocField);
     }
