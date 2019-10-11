@@ -162,7 +162,7 @@ class Roc_Model
      * @param int $iPKID
      * @return array/null
      */
-    public static function getDetail ($sPk,$sField="*")
+    public static function getDetail ($pk,$sField="*")
     {
         $aParam["table"] = self::getTable();
         if(empty($sField)){
@@ -172,7 +172,7 @@ class Roc_Model
         }
         //获取pk
         $pkField = self::getPKField();
-        $aParam["where"][$pkField] = $sPk;
+        $aParam["where"][$pkField] = $pk;
         return self::query("getRow",$aParam);
     }
 
@@ -189,7 +189,7 @@ class Roc_Model
         }
         $pkField = self::getPKField();
         $sAssocField = $bUsePK?$pkField:null;
-        $aParam["{$pkField} IN"] = $pkList;
+        $aParam["where"]["{$pkField} IN"] = $pkList;
 
         return self::query("getAll",$aParam,$sAssocField);
     }
@@ -216,12 +216,12 @@ class Roc_Model
      * @param array $aData
      * @return int/false
      */
-    public static function updateByPK ($pkID,$aData)
+    public static function updateByPK ($pk,$aData)
     {
         $aParam["table"] = self::getTable();
         //获取pk
         $pkField = self::getPKField();
-        $aParam["where"][$pkField] = $pkID;
+        $aParam["where"][$pkField] = $pk;
         return self::execute("update",$aParam, $aData);
     }
 
@@ -231,12 +231,12 @@ class Roc_Model
      * @param int $iPKID
      * @return int/false
      */
-    public static function delByPK ($pkID)
+    public static function delByPK ($pk)
     {
         $aParam["table"] = self::getTable();
         //获取pk
         $pkField = self::getPKField();
-        $aParam["where"][$pkField] = $pkID;
+        $aParam["where"][$pkField] = $pk;
         return self::execute("delete",$aParam,null);
     }
     /**
@@ -247,10 +247,11 @@ class Roc_Model
      */
     public static function insert ($aData,$sType = 'INSERT')
     {
+        $aParam["table"] = self::getTable();
         if ($sType == 'INSERT') {
-            return self::execute("insert", null,$aData);
+            return self::execute("insert", $aParam,$aData);
         } else {
-            return self::execute("replace", null,$aData);
+            return self::execute("replace", $aParam,$aData);
         }
     }
     /**
