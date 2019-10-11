@@ -187,7 +187,7 @@ class Roc_Model
         if(!in_array($sType,$aMethod)){
             return [];
         }
-        return self::getDbh()->getByType($sType,$aParam,$sAssocField);
+        return self::getDbh()->queryByType($sType,$aParam,$sAssocField);
     }
 
     /**
@@ -217,7 +217,7 @@ class Roc_Model
         //获取pk
         $pkField = self::getPKField();
         $aParam["where"][$pkField] = $pkID;
-        return self::execute("delete",$aParam);
+        return self::execute("delete",$aParam,null);
     }
     /**
      * 新增数据
@@ -228,9 +228,9 @@ class Roc_Model
     public static function insert ($aData,$sType = 'INSERT')
     {
         if ($sType == 'INSERT') {
-            return self::execute("insert", $aData);
+            return self::execute("insert", null,$aData);
         } else {
-            return self::execute("replace", $aData);
+            return self::execute("replace", null,$aData);
         }
     }
     /**
@@ -240,22 +240,18 @@ class Roc_Model
      */
     public static function insertAll($aRows)
     {
-        return self::execute("insertAll", $aRows);
+        return self::execute("insertAll",null, $aRows);
     }
     /*
      * 执行
      */
-    private static function execute ($sType,$aParam,$sAssocField = null)
+    private static function execute ($sType,$aParam,$aData)
     {
         $aMethod = ['update','delete','insert','replace','insertAll'];
         if(!in_array($sType,$aMethod)){
             return [];
         }
-        $oDb = self::getDbh();
-        if(!method_exists($oDb,$sType)){
-            return false;
-        }
-        return $oDb->$sType($aParam,$sAssocField);
+        return self::getDbh()->execByType($sType,$aParam,$aData);
     }
     /**
      * 执行SQL，还回结果

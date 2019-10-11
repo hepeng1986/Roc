@@ -121,160 +121,26 @@ class Roc_Db_Dao
      * @param unknown $type
      * @return Ambigous <multitype:, multitype:Ambigous <unknown> >|Ambigous <number, NULL>|Ambigous <multitype:, unknown>|Ambigous <multitype:, multitype:unknown >
      */
-    public function getByType($type,$aParam,$sAssocField)
+    public function queryByType($type,$aParam,$sAssocField)
     {
         //处理参数
-        $sSQL = $this->_buildSQL($aParam);
-        $this->$type($sSQL,$sAssocField);
+        $this->$type($aParam,$sAssocField);
     }
-    /**
-     * 构建过滤的条件
-     *
-     * @param array $aParam
-     * @return string
-     */
-    private static function _buildSQL ($aParam)
+    public function execByType($type,$aParam,$aData)
     {
-        $sTable = '';
-        $sGroup = '';
-        $sWhere = '';
-        $aWhere = array();
-        if (is_array($aParam)) {
-            if (isset($aParam['where']) || isset($aParam['limit']) || isset($aParam['order'])) {
-                if (isset($aParam['where']) && is_array($aParam['where'])) {
-                    $aWhere = $aParam['where'];
-                } elseif (isset($aParam['where'])) {
-                    $sWhere = $aParam['where'];
-                }
-
-                if (isset($aParam['order'])) {
-                    $sOrder = $aParam['order'];
-                }
-                if (isset($aParam['limit'])) {
-                    $sLimit = $aParam['limit'];
-                }
-                if (isset($aParam['group'])) {
-                    $sGroup = $aParam['group'];
-                }
-                if (isset($aParam['field'])) {
-                    $sField = $aParam['field'];
-                }
-                if (isset($aParam['table'])) {
-                    $sTable = $aParam['table'];
-                }
-            } else {
-                $aWhere = $aParam;
-            }
-        } else {
-            $sWhere = $aParam;
+        $table = $this->sDbName;
+        switch ($type) {
+            case 'update':
+                return $this->update($table,$aData);
+            case 'delete':
+                return $this->delete($table,$aParam);
+            case 'insert':
+                return $this->insert($aData);
+            case 'replace':
+                return $this->replace($aData);
+            case 'insertAll':
+                return $this->insertAll($aData);
         }
-        if (! empty($aWhere)) {
-            $aTmpWhere = array();
-            foreach ($aWhere as $k => $v) {
-                if (is_numeric($k) || $k == 'sWhere') {    //兼容,array(0 => 'sField=1', 1 => 'sField>5')这种写法
-                    $aTmpWhere[] = $v;
-                } else {
-                    $aTmpWhere[] = self::_buildField($k, $v);
-                }
-            }
-            $sWhere = join(' AND ', $aTmpWhere);
-        }
-
-        if (! empty($sWhere)) {
-            $sWhere = 'WHERE ' . $sWhere;
-        }
-
-        if (! empty($sOrder)) {
-            $sOrder = 'ORDER BY ' . $sOrder;
-        }
-        if (! empty($sLimit)) {
-            $sLimit = 'LIMIT ' . $sLimit;
-        }
-        if (! empty($sGroup)) {
-            $sGroup = 'GROUP BY ' . $sGroup;
-        }
-
-        if (empty($sTable)) {
-            $sTable = self::getTable();
-        }
-        $sSQL = "SELECT $sField FROM $sTable $sWhere $sGroup $sOrder $sLimit";
-        return $sSQL;
-    }
-
-    /**
-     * Build一个字段
-     * @param unknown $sKey
-     * @param unknown $mValue
-     * @throws Exception
-     */
-    public static function _buildField ($sKey, $mValue)
-    {
-        $sRet = '';
-        $aOpt = explode(' ', $sKey);
-        $sOpt = strtoupper(isset($aOpt[1]) ? trim($aOpt[1]) : '=');
-        $sField = trim($aOpt[0]);
-        $sType = $sField[0];
-        if (stripos($sField, '.') === false) {
-            $sField = '`' . $sField . '`';
-
-        } else {
-            $sType = substr($sField, stripos($sField, '.') + 1, 1);
-        }
-
-        if (isset(self::$_aOperators[$sOpt])) {
-            switch ($sOpt) {
-                case '=':
-                case '!=':
-                case '<>':
-                case '>':
-                case '>=':
-                case '<':
-                case '<=':
-                    $mVal = $sType == 's' ? "'" . self::quote($mValue) . "'" : $mValue;
-                    $sRet = "$sField $sOpt $mVal";
-                    break;
-                case '+=':
-                case '-=':
-                case '*=':
-                case '/=':
-                    $sRet = "$sField = $sField {$sOpt[0]} $mValue";
-                    break;
-                case 'BETWEEN':
-                    if (is_string($mValue)) {
-                        $aTmp = explode(',', $mValue);
-                    } else {
-                        $aTmp = $mValue;
-                    }
-                    $sRet = "$sField BETWEEN {$aTmp[0]} AND {$aTmp[1]}";
-                    break;
-                case 'IN':
-                case 'NOT':
-                    if (is_array($mValue)) {
-                        if ($sType == 's') {
-                            $mValue = '"' . join('","', $mValue) . '"';
-                        } else {
-                            $mValue = join(',', $mValue);
-                        }
-                    }
-                    if ($sOpt == 'IN') {
-                        $sRet = "$sField IN($mValue)";
-                    } else {
-                        $sRet = "$sField NOT IN($mValue)";
-                    }
-                    break;
-                case 'LIKE':
-                    $sRet = "$sField LIKE '" . self::quote($mValue) . "'";
-                    break;
-                case 'FIND_IN_SET':
-                    $mVal = $sType == 's' ? "'" . self::quote($mValue) . "'" : $mValue;
-                    $sRet = "FIND_IN_SET($mVal, $sField)";
-                    break;
-            }
-        } else {
-            throw new Exception("Unkown operator $sOpt!!!");
-        }
-
-        return $sRet;
     }
     /**
      * 取得所有数据
@@ -337,36 +203,6 @@ class Roc_Db_Dao
         }
 
         return $rows;
-    }
-
-    /**
-     * 取得指定条数的数据
-     *
-     * @param string $sql
-     *            SQL语句
-     * @param int $offset
-     *            LIMIT的第一个参数
-     * @param int $limit
-     *            LIMIT的第二个参数
-     * @param string $field
-     *            以字段做为数组的key
-     * @return array
-     */
-    public function getLimit ($sql, $offset, $limit, $field = null)
-    {
-        $limit = intval($limit);
-        if ($limit <= 0) {
-            return array();
-        }
-        $offset = intval($offset);
-        if ($offset < 0) {
-            return array();
-        }
-        $sql = $sql . ' LIMIT ' . $limit;
-        if ($offset > 0) {
-            $sql .= ' OFFSET ' . $offset;
-        }
-        return $this->getAll($sql, $field);
     }
 
     /**
@@ -446,6 +282,13 @@ class Roc_Db_Dao
         return $res->fetchColumn(0);
     } 
 
+    public function querySQL($sql,$sAssocField){
+        return $this->getAll($sql,$sAssocField);
+    }
+    public function executeSQL($sql,$sAssocField)
+    {
+        return $this->getAll($sql, $sAssocField);
+    }
     /**
      * 替换操作
      * @param unknown $table
@@ -453,9 +296,9 @@ class Roc_Db_Dao
      * @param string $quote
      * @return number
      */
-    public function replace ($table, $row, $quote = false)
+    public function replace ($row)
     {
-        return $this->insert($table, $row, $quote, 'REPLACE');
+        return $this->insert($row,'REPLACE');
     }
 
     /**
@@ -466,51 +309,17 @@ class Roc_Db_Dao
      * @param bool $quote 是否进行数据过滤
      * @return int 影响的条数
      */
-    public function insert ($table, $row, $quote = false, $type = 'INSERT')
+    public function insert ($aData, $type = 'INSERT')
     {
-        $cols = array();
-        $vals = array();
-        if (false == $quote) {
-            foreach ($row as $col => $val) {
-                $cols[] = $col;
-                $vals[] = $val;
-            }
-        } else {
-            foreach ($row as $col => $val) {
-                $cols[] = $col;
-                $vals[] = $this->quote($val);
-            }
+        $cols = [];
+        $vals = [];
+        $table = $this->sDbName;
+        foreach ($aData as $col => $val) {
+            $cols[] = $col;
+            $vals[] = $val;
         }
-        $sql = $type . ' INTO `' . $table . '`' . '(`' . join('`, `', $cols) . '`) ' . 'VALUES (\'' . join('\',\'', $vals) . '\')';
+        $sql = $type . ' INTO `' . $table . '`' . '(`' . join('`, `', $cols) . '`) ' . 'VALUES ("' . join('\',\'', $vals) . '\')';
         return $this->query($sql);
-    }
-
-    /**
-     * 插入一条记录
-     *
-     * @param string $table 表数
-     * @param array $row 数据
-     * @param bool $quote 是否进行数据过滤
-     * @return int 影响的条数
-     */
-    public function _insert ($table, $row, $quote = false, $type = 'INSERT')
-    {
-        $cols = array();
-        $vals = array();
-        if (false == $quote) {
-            foreach ($row as $col => $val) {
-                $cols[] = $col;
-                $vals[] = $val;
-            }
-        } else {
-            foreach ($row as $col => $val) {
-                $cols[] = $col;
-                $vals[] = $this->quote($val);
-            }
-        }
-        $sql = $type . ' INTO `' . $table . '`' . '(`' . join('`, `', $cols) . '`) ' . 'VALUES (\'' . join('\',\'', $vals) . '\')';
-        $rowCount = $this->query($sql);
-        return $rowCount? $this->lastInsertId(): 0;
     }
 
     /**
@@ -528,13 +337,13 @@ class Roc_Db_Dao
      *            如果启用，则无数据库操作，仅返回SQL字符串。
      * @return int 影响的条数
      */
-    public function insertRows ($table, $rows, $type = 'INSERT', $quote = false)
+    public function insertAll ( $rows, $type = 'INSERT')
     {
         if (empty($rows)) {
             return true;
         }
 
-
+        $table = $this->sDbName;
         $n = 0;
         $cols = array();
         $vals = array();
@@ -543,9 +352,6 @@ class Roc_Db_Dao
             foreach ($row as $col => $val) {
                 if ($n == 0) {
                     $cols[] = $col;
-                }
-                if ($quote) {
-                    $val = $this->quote($val);
                 }
                 $arr[] = $val;
             }
@@ -569,14 +375,10 @@ class Roc_Db_Dao
      *            是否进行过滤
      * @return int 影响的条数
      */
-    public function update ($table, $data, $where = '', $quote = false)
+    public function update ($table, $data, $where = '')
     {
         $sets = array();
         foreach ($data as $col => $val) {
-            if ($quote) {
-                $val = $this->quote($val);
-            }
-
             // 配制+=,-=,/=,*=的情况
             if (preg_match('/^(.+)([\+\-\/\*])=$/', $col, $tmp)) {
                 $col = trim($tmp[1]);
@@ -616,35 +418,16 @@ class Roc_Db_Dao
     }
 
     /**
-     * 数据过滤
-     *
-     * @param mixed $value
-     *            要过滤的值
-     * @return string
+     * 启动事务
+     * @access public
+     * @return void
      */
-    public function quote ($value)
-    {
-        if (is_int($value)) {
-            return $value;
-        } elseif (is_float($value)) {
-            return sprintf('%F', $value);
-        }
-        return @addcslashes($value, "\000\n\r\\'\"\032");
-    }
-
-    /**
-     * 事务开始
-     *
-     * @param bool $no_check
-     * @return bool
-     */
-    public function begin ()
-    {
+    public function begin() {
         if ($this->iTransaction == 0) {
             if ($this->bUseCommit) {
                 throw new Exception('本次操作里已经使用了一次事务。', 3);
             }
-            beginTransaction()
+            $this->oDbh->beginTransaction();
             $this->bUseCommit = true;
         }
         $this->iTransaction ++;
@@ -652,26 +435,28 @@ class Roc_Db_Dao
     }
 
     /**
-     * 事务提交
+     * 用于非自动提交状态下面的查询提交
+     * @access public
+     * @return boolean
      */
-    public function commit ()
-    {
+    public function commit() {
         if ($this->iTransaction < 1) {
             throw new Exception('出错啦！事务不配对！', 3);
         }
         $this->iTransaction --;
         if (0 == $this->iTransaction) {
-            $this->execute('COMMIT');
+            $this->oDbh->commit();
         }
         return true;
     }
 
     /**
      * 事务回滚
+     * @access public
+     * @return boolean
      */
-    public function rollBack ()
-    {
-        $this->execute('ROLLBACK');
+    public function rollback() {
+        $this->oDbh->rollback();
         $this->iTransaction = 0;
         $this->bUseCommit = false;
         return true;
@@ -762,12 +547,19 @@ class Roc_Db_Dao
         //是有已连接过
         if (!isset(self::$_aInstance[$sDbName])) {
             $aConf = Roc_G::getConf($sDbName, 'Database');
+            $sDsn = "{$aConf["type"]}:host={$aConf["host"]};dbname={$aConf["db"]}";
+            if(!empty($aConf['port'])) {
+                $sDsn .= ";port={$aConf['port']}";
+            }
+            $aTemp = explode("_",__CLASS__);
+            $aTemp[2] = $aConf["type"];
+            $sClassName = implode("_",$aTemp);
             $aOption = [
                 PDO::ATTR_ERRMODE => PDO::ERRMODE_WARNING,
                 PDO::MYSQL_ATTR_USE_BUFFERED_QUERY => true,
                 PDO::ATTR_STRINGIFY_FETCHES => false
             ];
-            self::$_aInstance[$sDbName] = new PDO($aConf['dsn'], $aConf['user'], $aConf['passwd'], $aOption);
+            self::$_aInstance[$sDbName] = new $sClassName($sDsn, $aConf['user'], $aConf['passwd'], $aOption);
         }
 
         return self::$_aInstance[$sDbName];

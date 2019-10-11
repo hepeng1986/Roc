@@ -200,50 +200,6 @@ abstract class Roc_Db_Driver {
         }
     }
 
-    /**
-     * 启动事务
-     * @access public
-     * @return void
-     */
-    public function begin() {
-        if ($this->iTransaction == 0) {
-            if ($this->bUseCommit) {
-                throw new Exception('本次操作里已经使用了一次事务。', 3);
-            }
-            $this->oDbh->beginTransaction();
-            $this->bUseCommit = true;
-        }
-        $this->iTransaction ++;
-        return true;
-    }
-
-    /**
-     * 用于非自动提交状态下面的查询提交
-     * @access public
-     * @return boolean
-     */
-    public function commit() {
-        if ($this->iTransaction < 1) {
-            throw new Exception('出错啦！事务不配对！', 3);
-        }
-        $this->iTransaction --;
-        if (0 == $this->iTransaction) {
-            $this->oDbh->commit();
-        }
-        return true;
-    }
-
-    /**
-     * 事务回滚
-     * @access public
-     * @return boolean
-     */
-    public function rollback() {
-        $this->oDbh->rollback();
-        $this->iTransaction = 0;
-        $this->bUseCommit = false;
-        return true;
-    }
 
     /**
      * 获得所有的查询数据
