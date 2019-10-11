@@ -182,14 +182,14 @@ class Roc_Model
      * @param $pkFieldList  逗号分隔或者数组
      * @return array
      */
-    public static function getPKIDList ($sPkList, $bUsePK = false)
+    public static function getPKList ($pkList, $bUsePK = false)
     {
-        if (empty($pkIDList)) {
+        if (empty($pkList)) {
             return [];
         }
-        $sPkField = self::getPKField();
-        $sAssocField = $bUsePK?$sPkField:null;
-        $aParam["{$sPkField} IN"] = $sPkList;
+        $pkField = self::getPKField();
+        $sAssocField = $bUsePK?$pkField:null;
+        $aParam["{$pkField} IN"] = $pkList;
 
         return self::query("getAll",$aParam,$sAssocField);
     }
