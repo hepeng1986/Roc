@@ -541,37 +541,4 @@ class Roc_Db_Dao
     public function closeTranction (){
         $this->bUseCommit = false;
     }
-
-    //获取实例
-    public static function getPDO($sDbName){
-        //是有已连接过
-        if (!isset(self::$_aInstance[$sDbName])) {
-            $aConf = Roc_G::getConf($sDbName, 'Database');
-            $sDsn = "{$aConf["type"]}:host={$aConf["host"]};dbname={$aConf["db"]}";
-            if(!empty($aConf['port'])) {
-                $sDsn .= ";port={$aConf['port']}";
-            }
-            $aTemp = explode("_",__CLASS__);
-            $aTemp[2] = $aConf["type"];
-            $sClassName = implode("_",$aTemp);
-            $aOption = [
-                PDO::ATTR_ERRMODE => PDO::ERRMODE_WARNING,
-                PDO::MYSQL_ATTR_USE_BUFFERED_QUERY => true,
-                PDO::ATTR_STRINGIFY_FETCHES => false
-            ];
-            self::$_aInstance[$sDbName] = new $sClassName($sDsn, $aConf['user'], $aConf['passwd'], $aOption);
-        }
-
-        return self::$_aInstance[$sDbName];
-    }
-    /*
-     * 获取自身的实例
-     */
-    public static function getInstance($sDbName){
-        static $_aDbInstance = [];
-        if (!isset($_aDbInstance[$sDbName])) {
-            $_aDbInstance[$sDbName] = new self($sDbName);
-        }
-        return $_aDbInstance[$sDbName];
-    }
 }

@@ -13,12 +13,9 @@ class Roc_Db_Oracle extends Roc_Db_Driver{
      * @param array $config 连接信息
      * @return string
      */
-    protected function parseDsn($config){
-        $dsn  =   'oci:dbname=//'.$config['hostname'].($config['hostport']?':'.$config['hostport']:'').'/'.$config['database'];
-        if(!empty($config['charset'])) {
-            $dsn  .= ';charset='.$config['charset'];
-        }
-        return $dsn;
+    protected function parseDsn($aConf){
+        $sDsn  =   'oci:dbname=//'.$aConf['host'].($aConf['port']?':'.$aConf['port']:'').'/'.$aConf['db'];
+        return $sDsn;
     }
 
     /**

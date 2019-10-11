@@ -30,6 +30,9 @@ class Roc_Model
         if (!isset(self::$_aInstance[$sDbName])) {
             $aConf = Roc_G::getConf($sDbName, 'Database');
             if(empty($aConf) || empty($aConf["type"]) || !in_array(strtolower($aConf["type"]),["mysql,sqlsrv,sqlite,oracle"])){
+                Roc_G::throwException("Db类型配置不正确");
+            }
+            if(empty($aConf["host"]) || empty($aConf["db"])|| empty($aConf["user"]) || empty($aConf["pass"])){
                 Roc_G::throwException("Db配置不正确");
             }
             $aTemp = explode("_",__CLASS__);

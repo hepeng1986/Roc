@@ -11,7 +11,11 @@ class Roc_Db_Mysql extends Roc_Db_Driver{
      * @return string
      */
     protected function parseDsn($aConf){
-        return "mysql:dbname={$aConf['db']};host={$aConf['host']}";
+        $sDsn = "mysql:host={$aConf['host']};dbname={$aConf['db']}";
+        if(!empty($aConf["port"])){
+            $sDsn .= ";port={$aConf['port']}";
+        }
+        return $sDsn;
     }
 
     /**
