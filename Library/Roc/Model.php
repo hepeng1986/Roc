@@ -271,7 +271,8 @@ class Roc_Model
      */
     public static function executeSQL ($sSQL)
     {
-        return false;
+        $oDb = self::getDbh();
+        return $oDb->executeSQL($sSQL);
     }
 
     /**

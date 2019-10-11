@@ -285,9 +285,9 @@ class Roc_Db_Dao
     public function querySQL($sql,$sAssocField){
         return $this->getAll($sql,$sAssocField);
     }
-    public function executeSQL($sql,$sAssocField)
+    public function executeSQL($sql)
     {
-        return $this->getAll($sql, $sAssocField);
+        return $this->query($sql);
     }
     /**
      * 替换操作
