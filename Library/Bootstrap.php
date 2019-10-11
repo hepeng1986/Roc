@@ -21,6 +21,10 @@ define('LOG_SYS',     1);
 define('LOG_ERROR',     2);
 define('LOG_DEBUG',     4);
 
+define('ERR_CODE_USER',     9000);
+define('ERROR_CODE_SERVER',     9800);
+define('ERROR_CODE_EXCEPTION',     9900);
+define('ERROR_CODE_UNKNOW',     9999);
 // 自动加载
 require LIB_PATH.'Loader.php';
 // 创建实例

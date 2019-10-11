@@ -9,25 +9,42 @@
 class Roc_Model
 {
     //动态的DB库
-    protected static $dbName = 'default';
+    protected static $sDbName = 'default';
     //动态表名
-    protected static $tableName = '';
+    protected static $sTableName = '';
     //主键
-    protected static $pkField = 'iAutoID';
+    protected static $sPkField = 'iAutoID';
+    //数据库对象
+    protected static $_aInstance = [];
 
     /**
      * 取得Dbh连接
      */
     public static function getDbh ()
     {
-        return Roc_Db_Dao::getInstance(static::$dbName);
+        $sDbName = static::$sDbName;
+        if(empty($sDbName)){
+            Roc_G::throwException("Db名称不能为空");
+        }
+        //缓存单例
+        if (!isset(self::$_aInstance[$sDbName])) {
+            $aConf = Roc_G::getConf($sDbName, 'Database');
+            if(empty($aConf) || empty($aConf["type"]) || !in_array(strtolower($aConf["type"]),["mysql,sqlsrv,sqlite,oracle"])){
+                Roc_G::throwException("Db配置不正确");
+            }
+            $aTemp = explode("_",__CLASS__);
+            $aTemp[2] = $aConf["type"];
+            $sClassName = implode("_",$aTemp);
+            self::$_aInstance[$sDbName] = new $sClassName($aConf);
+        }
+        return self::$_aInstance[$sDbName];
     }
     /*
      * 切换DB
      */
     public static function changeDb($sDbName)
     {
-        static::$dbName = $sDbName;
+        static::$sDbName = $sDbName;
     }
 
     /**
@@ -35,7 +52,7 @@ class Roc_Model
      */
     public static function getTable ()
     {
-        return static::$tableName;
+        return static::$sTableName;
     }
 
     /**
@@ -43,7 +60,7 @@ class Roc_Model
      */
     public static function getPKField ()
     {
-        return static::$pkField;
+        return static::$sPkField;
     }
 
     /**
@@ -57,8 +74,8 @@ class Roc_Model
         $iCount = 0;
         if(!empty($aParam["group"])){
             $aParam["field"] = $aParam["group"];
-            $aRet = self::query("getCol",$aParam);
-            $iCount = count($aRet);
+            $aData = self::query("getCol",$aParam);
+            $iCount = count($aData);
         }else{
             $aParam["field"] = "COUNT(*)";
             $iCount = self::query("getOne",$aParam);
@@ -73,7 +90,7 @@ class Roc_Model
      */
     public static function getOne ($aParam, $sField = null)
     {
-        if(Roc_G::emptyZero($sField)){
+        if(empty($sField)){
             return false;
         }
         $aParam["field"] = $sField;
@@ -87,7 +104,7 @@ class Roc_Model
      */
     public static function getCol ($aParam, $sField = null)
     {
-        if(Roc_G::emptyZero($sField)){
+        if(emptyZero($sField)){
             return [];
         }
         $aParam["field"] = $sField;
@@ -102,7 +119,7 @@ class Roc_Model
      */
     public static function getPair ($aParam, $sKeyField = null, $sValueField = null)
     {
-        if (Roc_G::emptyZero($sKeyField) || Roc_G::emptyZero($sValueField)()) {
+        if (empty($sKeyField) || empty($sValueField)) {
             return [];
         }
         $sField = "{$sKeyField},{$sValueField}";
