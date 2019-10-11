@@ -60,6 +60,7 @@ class Roc_Model
      */
     public static function getPKField ()
     {
+        //先设置，如果没有可以从缓存取
         if(empty(static::$sPkField)){
             Roc_G::throwException("无法找到主键。表名:".self::getTable());
         }
@@ -107,7 +108,7 @@ class Roc_Model
      */
     public static function getCol ($aParam, $sField = null)
     {
-        if(emptyZero($sField)){
+        if(empty($sField)){
             return [];
         }
         $aParam["field"] = $sField;
@@ -164,7 +165,6 @@ class Roc_Model
      */
     public static function getDetail ($pk,$sField="*")
     {
-        $aParam["table"] = self::getTable();
         if(empty($sField)){
             $aParam["field"] = "*";
         }else{
@@ -207,6 +207,9 @@ class Roc_Model
         if(!in_array($sType,$aMethod)){
             return [];
         }
+        if(empty($aParam["table"])){
+            $aParam["table"] = self::getTable();
+        }
         return self::getDbh()->queryByType($sType,$aParam,$sAssocField);
     }
 
@@ -218,7 +221,6 @@ class Roc_Model
      */
     public static function updateByPK ($pk,$aData)
     {
-        $aParam["table"] = self::getTable();
         //获取pk
         $pkField = self::getPKField();
         $aParam["where"][$pkField] = $pk;
@@ -233,7 +235,6 @@ class Roc_Model
      */
     public static function delByPK ($pk)
     {
-        $aParam["table"] = self::getTable();
         //获取pk
         $pkField = self::getPKField();
         $aParam["where"][$pkField] = $pk;
@@ -247,11 +248,10 @@ class Roc_Model
      */
     public static function insert ($aData,$sType = 'INSERT')
     {
-        $aParam["table"] = self::getTable();
         if ($sType == 'INSERT') {
-            return self::execute("insert", $aParam,$aData);
+            return self::execute("insert", null,$aData);
         } else {
-            return self::execute("replace", $aParam,$aData);
+            return self::execute("replace", null,$aData);
         }
     }
     /**
@@ -272,6 +272,9 @@ class Roc_Model
         if(!in_array($sType,$aMethod)){
             return [];
         }
+        if(empty($aParam) || empty($aParam["table"])){
+            $aParam["table"] = self::getTable();
+        }
         return self::getDbh()->execByType($sType,$aParam,$aData);
     }
     /**
@@ -284,16 +287,14 @@ class Roc_Model
      */
     public static function querySQL ($sSQL,$sAssocField)
     {
-        $oDb = self::getDbh();
-        return $oDb->querySQL($sSQL,$sAssocField);
+        return self::getDbh()->querySQL($sSQL,$sAssocField);
     }
     /*
      * 执行
      */
     public static function executeSQL ($sSQL)
     {
-        $oDb = self::getDbh();
-        return $oDb->executeSQL($sSQL);
+        return self::getDbh()->executeSQL($sSQL);
     }
 
     /**
@@ -343,7 +344,6 @@ class Roc_Model
      */
     public static function getDataList($sWhere,$sField = "*",$sGroup="",$sOrder = "",$limit = "", $sTable = ""){
         //设置参数
-        $aParam = [];
         $aParam['where'] =  $sWhere;
         if(!empty($sField)){
             $aParam['field'] =  $sField;
@@ -375,9 +375,7 @@ class Roc_Model
      */
     public static function getDataListPage($sWhere,$iPage=1,$sField = "*",$sGroup="",$sOrder = "",$sTable = "",$iPageSize=20){
         //设置参数
-        $aParam = [];
         $aParam['where'] =  $sWhere;
-
         if(!empty($sField)){
             $aParam['field'] =  $sField;
         }
@@ -407,8 +405,6 @@ class Roc_Model
             $aRet['iPageNum'] = ceil($aRet['iTotal']/$iPageSize);
             $aRet['aList'] = self::getAll($aParam,null,false);
         }
-
-
         return $aRet;
     }
     /**
@@ -422,8 +418,7 @@ class Roc_Model
      */
     public static function getDataListAssoc($sWhere,$mField = "*",$sGroup="",$sOrder = "",$limit = "",$sTable = ""){
         //设置参数
-        $assoc = null;
-        $aParam = [];
+        $sAssocField = null;
         $aParam['where'] =  $sWhere;
         //获取key
         if(is_string($mField)){
@@ -435,7 +430,7 @@ class Roc_Model
                 $aParam['field'] =  $mField[0];
             }
             if(!empty($mField[1])){
-                $assoc = $mField[1];
+                $sAssocField = $mField[1];
             }
         }
         //其他条件
@@ -445,9 +440,12 @@ class Roc_Model
         if(!empty($sOrder)){
             $aParam['order'] =  $sOrder;
         }
+        if(!empty($limit)){
+            $aParam['limit'] = $limit;
+        }
         if(!empty($sTable)){
             $aParam['table'] =  $sTable;
         }
-        return self::getAll($aParam,$assoc,false);
+        return self::getAll($aParam,$sAssocField,false);
     }
 }
