@@ -20,7 +20,7 @@ class Roc_Model
      */
     public static function getDbh ()
     {
-        return Db_Dao::getInstance(static::$dbName);
+        return Roc_Db_Dao::getInstance(static::$dbName);
     }
     /*
      * 切换DB

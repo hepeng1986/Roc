@@ -2,7 +2,7 @@
 /**
  * Sqlite数据库驱动
  */
-class Sqlite extends Driver {
+class Roc_Db_Sqlite extends Roc_Db_Driver {
 
     /**
      * 解析pdo连接的dsn信息

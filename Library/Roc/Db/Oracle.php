@@ -2,7 +2,7 @@
 /**
  * Oracle数据库驱动
  */
-class Oracle extends Driver{
+class Roc_Db_Oracle extends Roc_Db_Driver{
 
     private     $table        = '';
     protected   $selectSql    = 'SELECT * FROM (SELECT thinkphp.*, rownum AS numrow FROM (SELECT  %DISTINCT% %FIELD% FROM %TABLE%%JOIN%%WHERE%%GROUP%%HAVING%%ORDER%) thinkphp ) %LIMIT%%COMMENT%';

@@ -8,7 +8,7 @@
  * $Id: Db.php 8 2010-03-18 08:34:29Z xiejc $
  * @history
  */
-class Roc_Db_Dao extends Roc_Db_Driver
+class Roc_Db_Dao
 {
 
     private $sDbName;
