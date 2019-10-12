@@ -332,15 +332,16 @@ abstract class Roc_Db_Driver {
      * @param unknown $mValue
      * @throws Exception
      */
-    public static function parseWhereItem ($sKey, $mValue)
+    public function parseWhereItem ($sKey, $mValue)
     {
         $sRet = '';
         $aOpt = explode(' ', $sKey);
         $sOpt = strtoupper(isset($aOpt[1]) ? trim($aOpt[1]) : '=');
         $sField = trim($aOpt[0]);
-        if (strpos($sField, '.') === false) {
-            $sField = '`' . $sField . '`';
+        if (strpos($sField, '.') !== false) {
+            $sField = substr($sField, strpos($sField, '.') + 1);
         }
+        $sField2 = '`' . $sField . '`';
         if (isset(self::$_aOperators[$sOpt])) {
             switch ($sOpt) {
                 case '=':
@@ -350,8 +351,8 @@ abstract class Roc_Db_Driver {
                 case '>=':
                 case '<':
                 case '<=':
-                    $mVal = "'{$mValue}'";
-                    $sRet = "{$sField} {$sOpt} {$mVal}";
+                    $sRet = "{$sField2} {$sOpt} :{$sField}";
+                    $this->bindParam($sField,$mValue);
                     break;
                 case 'BETWEEN':
                     if (is_string($mValue)) {
@@ -359,7 +360,9 @@ abstract class Roc_Db_Driver {
                     } else {
                         $aTmp = $mValue;
                     }
-                    $sRet = "$sField BETWEEN {$aTmp[0]} AND {$aTmp[1]}";
+                    $sRet = "$sField2 BETWEEN :{$sField}1 AND :{$sField}2";
+                    $this->bindParam($sField."1",$aTmp[0]);
+                    $this->bindParam($sField."2",$aTmp[1]);
                     break;
                 case 'IN':
                 case 'NOT':
@@ -367,10 +370,11 @@ abstract class Roc_Db_Driver {
                         $mValue = '"' . join('","', $mValue) . '"';
                     }
                     if ($sOpt == 'IN') {
-                        $sRet = "$sField IN($mValue)";
+                        $sRet = "{$sField2} IN(:{$sField})";
                     } else {
-                        $sRet = "$sField NOT IN($mValue)";
+                        $sRet = "{$sField2} NOT IN(:{$sField})";
                     }
+                    $this->bindParam($sField,$mValue);
                     break;
                 case 'LIKE':
                     $sRet = "$sField LIKE '" . $mValue . "'";
