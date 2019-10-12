@@ -32,14 +32,27 @@ abstract class Roc_Db_Driver {
 
     private static $_iUseTime = 0;
     // 查询表达式
-    protected $selectSql  = "SELECT %FIELD% FROM %TABLE% %JOIN% %WHERE% %GROUP% %HAVING% %ORDER% %LIMIT% ";
+    protected $sSelectSql  = "SELECT %FIELD% FROM %TABLE% %JOIN% %WHERE% %GROUP% %HAVING% %ORDER% %LIMIT% ";
     // 查询次数
     protected $queryTimes   =   0;
     // 执行次数
     protected $executeTimes =   0;
 
-    protected $bind         =   array(); // 参数绑定
-
+    protected $bind = [];
+    protected static $_aOperators = array(
+        '=' => 1,
+        '!=' => 1,
+        '<>' => 1,
+        '>' => 1,
+        '>=' => 1,
+        '<' => 1,
+        '<=' => 1,
+        'IN' => 1,
+        'NOT' => 1,
+        'LIKE' => 1,
+        'FIND_IN_SET' => 1,
+        'BETWEEN' => 1
+    );
     //初始化
     public function __construct ($aConf)
     {
@@ -255,7 +268,7 @@ abstract class Roc_Db_Driver {
      * @param mixed $value
      * @return string
      */
-    protected function parseValue($value) {
+    protected function parseValue2($value) {
         if(is_string($value)) {
             $value =  strpos($value,':') === 0 && in_array($value,array_keys($this->bind))? $this->escapeString($value) : '\''.$this->escapeString($value).'\'';
         }elseif(isset($value[0]) && is_string($value[0]) && strtolower($value[0]) == 'exp'){
@@ -286,8 +299,8 @@ abstract class Roc_Db_Driver {
      * @param mixed $table
      * @return string
      */
-    protected function parseTable($table) {
-        return $table;
+    protected function parseTable($sTable) {
+        return $sTable;
     }
 
     /**
@@ -301,12 +314,12 @@ abstract class Roc_Db_Driver {
         if(is_string($where)){
             $sWhere = $where;
         }elseif(is_array($where)){
-            $aTmpWhere = array();
+            $aTmpWhere = [];
             foreach ($where as $k => $v) {
                 if (is_numeric($k)) {    //兼容,array(0 => 'sField=1', 1 => 'sField>5')这种写法
                     $aTmpWhere[] = $v;
                 } else {
-                    $aTmpWhere[] = self::_buildField($k, $v);
+                    $aTmpWhere[] = $this->parseWhereItem($k, $v);
                 }
             }
             $sWhere = join(' AND ', $aTmpWhere);
@@ -319,20 +332,15 @@ abstract class Roc_Db_Driver {
      * @param unknown $mValue
      * @throws Exception
      */
-    public static function _buildField ($sKey, $mValue)
+    public static function parseWhereItem ($sKey, $mValue)
     {
         $sRet = '';
         $aOpt = explode(' ', $sKey);
         $sOpt = strtoupper(isset($aOpt[1]) ? trim($aOpt[1]) : '=');
         $sField = trim($aOpt[0]);
-        $sType = $sField[0];
-        if (stripos($sField, '.') === false) {
+        if (strpos($sField, '.') === false) {
             $sField = '`' . $sField . '`';
-
-        } else {
-            $sType = substr($sField, stripos($sField, '.') + 1, 1);
         }
-
         if (isset(self::$_aOperators[$sOpt])) {
             switch ($sOpt) {
                 case '=':
@@ -343,13 +351,7 @@ abstract class Roc_Db_Driver {
                 case '<':
                 case '<=':
                     $mVal = "'{$mValue}'";
-                    $sRet = "$sField $sOpt $mVal";
-                    break;
-                case '+=':
-                case '-=':
-                case '*=':
-                case '/=':
-                    $sRet = "$sField = $sField {$sOpt[0]} $mValue";
+                    $sRet = "{$sField} {$sOpt} {$mVal}";
                     break;
                 case 'BETWEEN':
                     if (is_string($mValue)) {
@@ -362,11 +364,7 @@ abstract class Roc_Db_Driver {
                 case 'IN':
                 case 'NOT':
                     if (is_array($mValue)) {
-                        if ($sType == 's') {
-                            $mValue = '"' . join('","', $mValue) . '"';
-                        } else {
-                            $mValue = join(',', $mValue);
-                        }
+                        $mValue = '"' . join('","', $mValue) . '"';
                     }
                     if ($sOpt == 'IN') {
                         $sRet = "$sField IN($mValue)";
@@ -375,11 +373,7 @@ abstract class Roc_Db_Driver {
                     }
                     break;
                 case 'LIKE':
-                    $sRet = "$sField LIKE '" . self::quote($mValue) . "'";
-                    break;
-                case 'FIND_IN_SET':
-                    $mVal = $sType == 's' ? "'" . self::quote($mValue) . "'" : $mValue;
-                    $sRet = "FIND_IN_SET($mVal, $sField)";
+                    $sRet = "$sField LIKE '" . $mValue . "'";
                     break;
             }
         }
@@ -566,36 +560,24 @@ abstract class Roc_Db_Driver {
     }
 
     /**
-     * 生成查询SQL
-     * @access public
-     * @param array $options 表达式
-     * @return string
-     */
-    protected function buildSQL($aOptions) {
-        $sql  =   $this->parseParam($this->selectSql,$aOptions);
-        return $sql;
-    }
-
-    /**
      * 替换SQL语句中表达式
      * @access public
      * @param array $options 表达式
      * @return string
      */
-    public function parseParam($sql,$options=array()){
-        $sql   = str_replace(
-            array('%TABLE%','%DISTINCT%','%FIELD%','%JOIN%','%WHERE%','%GROUP%','%HAVING%','%ORDER%','%LIMIT%','%UNION%','%LOCK%','%COMMENT%','%FORCE%'),
-            array(
-                $this->parseTable($options['table']),
-                $this->parseField(!empty($options['field'])?$options['field']:'*'),
-                $this->parseJoin(!empty($options['join'])?$options['join']:''),
-                $this->parseWhere(!empty($options['where'])?$options['where']:''),
-                $this->parseGroup(!empty($options['group'])?$options['group']:''),
-                $this->parseHaving(!empty($options['having'])?$options['having']:''),
-                $this->parseOrder(!empty($options['order'])?$options['order']:''),
-                $this->parseLimit(!empty($options['limit'])?$options['limit']:''),
-            ),$sql);
-        return $sql;
+    public function buildSQL($aOption){
+        $sSQL   = str_replace(
+            ['%TABLE%','%FIELD%','%WHERE%','%GROUP%','%HAVING%','%ORDER%','%LIMIT%'],
+            [
+                $this->parseTable($aOption['table']),
+                $this->parseField(!empty($aOption['field'])?$aOption['field']:'*'),
+                $this->parseWhere(!empty($aOption['where'])?$aOption['where']:''),
+                $this->parseGroup(!empty($aOption['group'])?$aOption['group']:''),
+                $this->parseHaving(!empty($aOption['having'])?$aOption['having']:''),
+                $this->parseOrder(!empty($aOption['order'])?$aOption['order']:''),
+                $this->parseLimit(!empty($aOption['limit'])?$aOption['limit']:''),
+            ],$this->sSelectSql);
+        return $sSQL;
     }
 
     /**
