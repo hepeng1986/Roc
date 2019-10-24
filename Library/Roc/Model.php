@@ -36,8 +36,9 @@ class Roc_Model
                 Roc_G::throwException("Db配置不正确");
             }
             $aTemp = explode("_",__CLASS__);
+            $aTemp[1] = $aConf["type"];
             $aTemp[2] = $aConf["type"];
-            $sClassName = implode("_",$aTemp);
+            $sClassName = "Roc_Db_{$aConf["type"]}";
             self::$_aInstance[$sDbName] = new $sClassName($aConf);
         }
         return self::$_aInstance[$sDbName];
@@ -101,6 +102,7 @@ class Roc_Model
             return false;
         }
         $aParam["field"] = $sField;
+        $aParam["limit"] = "0,1";
         return self::query("getOne",$aParam);
     }
     /**

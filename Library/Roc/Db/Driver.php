@@ -32,13 +32,15 @@ abstract class Roc_Db_Driver {
 
     private static $_iUseTime = 0;
     // 查询表达式
-    protected $sSelectSql  = "SELECT %FIELD% FROM %TABLE% %JOIN% %WHERE% %GROUP% %HAVING% %ORDER% %LIMIT% ";
+    protected $sSelectSql  = "SELECT %FIELD% FROM %TABLE%  %WHERE% %GROUP% %HAVING% %ORDER% %LIMIT% ";
     // 查询次数
     protected $queryTimes   =   0;
     // 执行次数
     protected $executeTimes =   0;
 
     protected $bind = [];
+    //参数绑定
+    protected $aBind = [];
     protected static $_aOperators = array(
         '=' => 1,
         '!=' => 1,
@@ -48,9 +50,9 @@ abstract class Roc_Db_Driver {
         '<' => 1,
         '<=' => 1,
         'IN' => 1,
-        'NOT' => 1,
+        'NOTIN' => 1,
         'LIKE' => 1,
-        'FIND_IN_SET' => 1,
+        'NOTLIKE' => 1,
         'BETWEEN' => 1
     );
     //初始化
@@ -201,7 +203,43 @@ abstract class Roc_Db_Driver {
         }
     }
 
+    /**
+     * 查询操作的底层接口
+     *
+     * @param string $sql
+     *            要执行查询的SQL语句
+     * @return Object
+     */
+    public function execute2 ($sql)
+    {
+        $sql = trim($sql);
+        if (time() - $this->iPingTime > 300) {
+            $this->close();
+            $this->connect();
+            $this->iPingTime = time();
+        }
 
+        $iStartTime = microtime(true);
+        self::$_iQueryCnt += 1;
+        self::$_aSQL[] = $sql;
+        $res = @$this->oDbh->query($sql);
+        $iUseTime = round((microtime(true) - $iStartTime) * 1000, 2);
+        self::$_iUseTime += $iUseTime;
+
+        // echo $sql . "\n";
+        if ($res === false) {
+            $sErrInfo = join(' ', $this->oDbh->errorInfo());
+            throw new Exception($sErrInfo . ": " . $sql);
+            // echo $sql;exit;
+        }
+
+        // 影响记录数
+        $iAffectedRows = $res->rowCount();
+
+        self::_addLog($sql, $iAffectedRows, $iUseTime, $this->sDbName);
+
+        return $res;
+    }
     /**
      * 获得所有的查询数据
      * @access private
@@ -249,7 +287,7 @@ abstract class Roc_Db_Driver {
      * @return void
      */
     protected function bindParam($name,$value){
-        $this->bind[':'.$name]  =   $value;
+        $this->aBind[':'.$name]  =   $value;
     }
 
     /**
@@ -322,9 +360,9 @@ abstract class Roc_Db_Driver {
                     $aTmpWhere[] = $this->parseWhereItem($k, $v);
                 }
             }
-            $sWhere = join(' AND ', $aTmpWhere);
+            $sWhere = implode(' AND ', $aTmpWhere);
         }
-        return $sWhere;
+        return empty($sWhere)?'':' WHERE '.$sWhere;
     }
     /**
      * Build一个字段
@@ -334,14 +372,19 @@ abstract class Roc_Db_Driver {
      */
     public function parseWhereItem ($sKey, $mValue)
     {
-        $sRet = '';
+        //处理字段
         $aOpt = explode(' ', $sKey);
         $sOpt = strtoupper(isset($aOpt[1]) ? trim($aOpt[1]) : '=');
         $sField = trim($aOpt[0]);
+        $sPrefix = "";
         if (strpos($sField, '.') !== false) {
-            $sField = substr($sField, strpos($sField, '.') + 1);
+            $aFieldTemp = explode(".",$sField,2);
+            $sPrefix = $aFieldTemp[0];
+            $sField = $aFieldTemp[1];
         }
-        $sField2 = '`' . $sField . '`';
+        $sRealField = $sPrefix.'`' . $sField . '`';//真正的字段
+        $sBindField = $sPrefix.$sField;//绑定的字段
+        //生成where
         if (isset(self::$_aOperators[$sOpt])) {
             switch ($sOpt) {
                 case '=':
@@ -351,35 +394,45 @@ abstract class Roc_Db_Driver {
                 case '>=':
                 case '<':
                 case '<=':
-                    $sRet = "{$sField2} {$sOpt} :{$sField}";
-                    $this->bindParam($sField,$mValue);
+                    $sRet = "{$sRealField} {$sOpt} :{$sBindField}";
+                    $this->bindParam($sBindField,$mValue);
                     break;
                 case 'BETWEEN':
                     if (is_string($mValue)) {
                         $aTmp = explode(',', $mValue);
-                    } else {
+                    } elseif(is_array($mValue)) {
                         $aTmp = $mValue;
                     }
-                    $sRet = "$sField2 BETWEEN :{$sField}1 AND :{$sField}2";
-                    $this->bindParam($sField."1",$aTmp[0]);
-                    $this->bindParam($sField."2",$aTmp[1]);
+                    if(count($aTmp) != 2){
+                        Roc_G::throwException("BETWEEN 参数不正确");
+                    }
+                    $sRet = "{$sRealField} BETWEEN :{$sBindField}1 AND :{$sBindField}2";
+                    $this->bindParam($sBindField."1",$aTmp[0]);
+                    $this->bindParam($sBindField."2",$aTmp[1]);
                     break;
                 case 'IN':
-                case 'NOT':
+                case 'NOTIN':
                     if (is_array($mValue)) {
-                        $mValue = '"' . join('","', $mValue) . '"';
+                        $mValue = "'" . implode("','", $mValue) . "'";
                     }
                     if ($sOpt == 'IN') {
-                        $sRet = "{$sField2} IN(:{$sField})";
+                        $sRet = "{$sRealField} IN(:{$sBindField})";
                     } else {
-                        $sRet = "{$sField2} NOT IN(:{$sField})";
+                        $sRet = "{$sRealField} NOT IN(:{$sBindField})";
                     }
-                    $this->bindParam($sField,$mValue);
+                    $this->bindParam($sBindField,$mValue);
                     break;
                 case 'LIKE':
-                    $sRet = "$sField LIKE '" . $mValue . "'";
+                    $sRet = "{$sRealField} LIKE ':{$sBindField}'";
+                    $this->bindParam($sBindField,$mValue);
+                    break;
+                case 'NOTLIKE':
+                    $sRet = "{$sRealField} NOT LIKE ':{$sBindField}'";
+                    $this->bindParam($sBindField,$mValue);
                     break;
             }
+        }else{
+            Roc_G::throwException("不支持的操作符");
         }
 
         return $sRet;
@@ -727,6 +780,9 @@ abstract class Roc_Db_Driver {
      */
     public function queryByType($sType,$aParam,$sAssocField)
     {
+        if(empty($aParam["table"])){
+            Roc_G::throwException("查询的数据库表不能为空");
+        }
         $sSQL = $this->buildSQL($aParam);
         switch ($sType) {
             case 'getCol':
@@ -741,6 +797,7 @@ abstract class Roc_Db_Driver {
                 return $this->getAll($sSQL, $sAssocField);
             default:
                 Roc_G::throwException("不支持的查询方法");
+                return null;
         }
 
     }
@@ -758,6 +815,9 @@ abstract class Roc_Db_Driver {
                 return $this->replace($aData);
             case 'insertAll':
                 return $this->insertAll($aData);
+            default:
+                Roc_G::throwException("不支持的DB方法");
+                return null;
         }
     }
     /**
@@ -769,58 +829,19 @@ abstract class Roc_Db_Driver {
      *            以字段做为数组的key
      * @return array
      */
-    public function getAll ($sql, $field = null)
+    public function getAll ($sSQL, $sAssocField = null)
     {
-        $res = $this->execute($sql);
-        if (empty($res)) {
+        $aList = $this->execute($sSQL,PDO::FETCH_ASSOC);
+        if (empty($aList)) {
             return [];
         }
-        $rows = $res->fetchAll(PDO::FETCH_ASSOC);
-        if (empty($rows)) {
-            return array();
+        if (null != $sAssocField) {
+            $aRows = array_column($aList,null,$sAssocField);
+        }else{
+            $aRows = $aList;
         }
 
-        if (null != $field) {
-            $list = $rows;
-            $rows = array();
-            foreach ($list as $row) {
-                $rows[$row[$field]] = $row;
-            }
-        }
-
-        return $rows;
-    }
-
-    /**
-     * 以get_row方式取得所有数据
-     *
-     * @param string $sql
-     *            SQL语句
-     * @param int $index
-     *            以字段做为数组的key
-     * @return array
-     */
-    public function getAllByRow ($sql, $index = -1)
-    {
-        $res = $this->execute($sql);
-        if (! $res) {
-            return array();
-        }
-
-        $rows = $res->fetchAll(PDO::FETCH_NUM);
-        if (empty($rows)) {
-            return array();
-        }
-
-        if (-1 != $index) {
-            $list = $rows;
-            $rows = array();
-            foreach ($list as $row) {
-                $rows[$row[$index]] = $row;
-            }
-        }
-
-        return $rows;
+        return $aRows;
     }
 
     /**
@@ -832,15 +853,17 @@ abstract class Roc_Db_Driver {
      *            主从
      * @return array
      */
-    public function getCol ($sql)
+    public function getCol ($sSQL)
     {
-        $list = $this->getAllByRow($sql);
-        $rows = array();
-        foreach ($list as $row) {
-            $rows[] = $row[0];
+        $aList = $this->execute($sSQL,PDO::FETCH_NUM);
+        if (! $aList) {
+            return [];
         }
-
-        return $rows;
+        $aRows = [];
+        foreach ($aList as $row) {
+            $aRows[] = $row[0];
+        }
+        return $aRows;
     }
 
     /**
@@ -850,15 +873,17 @@ abstract class Roc_Db_Driver {
      *            SQL语句
      * @return array
      */
-    public function getPair ($sql)
+    public function getPair ($sSQL)
     {
-        $list = $this->getAllByRow($sql);
-        $rows = array();
-        foreach ($list as $row) {
-            $rows[$row[0]] = $row[1];
+        $aList = $this->execute($sSQL,PDO::FETCH_NUM);
+        if (! $aList) {
+            return [];
         }
-
-        return $rows;
+        $aRows = [];
+        foreach ($aList as $row) {
+            $aRows[$row[0]] = $row[1];
+        }
+        return $aRows;
     }
 
     /**
@@ -868,19 +893,13 @@ abstract class Roc_Db_Driver {
      *            SQL语句
      * @return array
      */
-    public function getRow ($sql)
+    public function getRow ($sSQL)
     {
-        $res = $this->execute($sql);
-        if (! $res) {
-            return array();
+        $aList = $this->execute($sSQL,PDO::FETCH_ASSOC);
+        if (! $aList) {
+            return [];
         }
-
-        $row = $res->fetch(PDO::FETCH_ASSOC);
-        if (empty($row)) {
-            return array();
-        }
-
-        return $row;
+        return $aList[0];
     }
 
     /**
@@ -890,14 +909,14 @@ abstract class Roc_Db_Driver {
      *            SQL语句
      * @return int string
      */
-    public function getOne ($sql)
+    public function getOne ($sSQL)
     {
-        $res = $this->execute($sql);
-        if (! $res) {
+        $aList = $this->execute($sSQL,PDO::FETCH_NUM);
+        if (! $aList) {
             return null;
         }
 
-        return $res->fetchColumn(0);
+        return $aList[0][0];
     }
 
     public function querySQL($sql,$sAssocField){
