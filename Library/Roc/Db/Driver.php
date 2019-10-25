@@ -6,7 +6,8 @@
  * Time: 9:55
  */
 
-abstract class Roc_Db_Driver {
+abstract class Roc_Db_Driver
+{
     //数据库名
     private $sDbName;
     //事务计数
@@ -32,11 +33,11 @@ abstract class Roc_Db_Driver {
 
     private static $_iUseTime = 0;
     // 查询表达式
-    protected $sSelectSql  = "SELECT %FIELD% FROM %TABLE%  %WHERE% %GROUP% %HAVING% %ORDER% %LIMIT% ";
+    protected $sSelectSql = "SELECT %FIELD% FROM %TABLE%  %WHERE% %GROUP% %HAVING% %ORDER% %LIMIT% ";
     // 查询次数
-    protected $queryTimes   =   0;
+    protected $queryTimes = 0;
     // 执行次数
-    protected $executeTimes =   0;
+    protected $executeTimes = 0;
 
     protected $bind = [];
     //参数绑定
@@ -55,16 +56,17 @@ abstract class Roc_Db_Driver {
         'NOTLIKE' => 1,
         'BETWEEN' => 1
     );
+
     //初始化
-    public function __construct ($aConf)
+    public function __construct($aConf)
     {
         $iStartTime = microtime(true);
         $this->oDbh = $this->connect($aConf);
         $iEndTime = microtime(true);
-        self::$_iConnentTime = round(($iEndTime - $iStartTime)*1000,2);
+        self::$_iConnentTime = round(($iEndTime - $iStartTime) * 1000, 2);
     }
 
-    public function connect ($aConf)
+    public function connect($aConf)
     {
         $sDsn = $this->parseDsn($aConf);
         $aOption = [
@@ -81,7 +83,8 @@ abstract class Roc_Db_Driver {
      * @param array $config 连接信息
      * @return string
      */
-    protected function parseDsn($config){
+    protected function parseDsn($config)
+    {
 
     }
 
@@ -89,58 +92,62 @@ abstract class Roc_Db_Driver {
      * 释放查询结果
      * @access public
      */
-    public function free() {
+    public function free()
+    {
         $this->PDOStatement = null;
     }
 
     /**
      * 执行查询 返回数据集
      * @access public
-     * @param string $str  sql指令
-     * @param boolean $fetchSql  不执行只是获取SQL
+     * @param string $str sql指令
+     * @param boolean $fetchSql 不执行只是获取SQL
      * @return mixed
      */
-    public function query($str,$fetchSql=false) {
+    public function query($str, $fetchSql = false)
+    {
         $this->initConnect(false);
-        if ( !$this->_linkID ) return false;
-        $this->queryStr     =   $str;
-        if(!empty($this->bind)){
-            $that   =   $this;
-            $this->queryStr =   strtr($this->queryStr,array_map(function($val) use($that){ return '\''.$that->escapeString($val).'\''; },$this->bind));
+        if (!$this->_linkID) return false;
+        $this->queryStr = $str;
+        if (!empty($this->bind)) {
+            $that = $this;
+            $this->queryStr = strtr($this->queryStr, array_map(function ($val) use ($that) {
+                return '\'' . $that->escapeString($val) . '\'';
+            }, $this->bind));
         }
-        if($fetchSql){
+        if ($fetchSql) {
             return $this->queryStr;
         }
         //释放前次的查询结果
-        if ( !empty($this->PDOStatement) ) $this->free();
+        if (!empty($this->PDOStatement)) $this->free();
         $this->queryTimes++;
-        N('db_query',1); // 兼容代码
+        N('db_query', 1); // 兼容代码
         // 调试开始
         $this->debug(true);
         $this->PDOStatement = $this->_linkID->prepare($str);
-        if(false === $this->PDOStatement){
+        if (false === $this->PDOStatement) {
             $this->error();
             return false;
         }
         foreach ($this->bind as $key => $val) {
-            if(is_array($val)){
+            if (is_array($val)) {
                 $this->PDOStatement->bindValue($key, $val[0], $val[1]);
-            }else{
+            } else {
                 $this->PDOStatement->bindValue($key, $val);
             }
         }
-        $this->bind =   array();
-        try{
-            $result =   $this->PDOStatement->execute();
+        $this->bind = array();
+        try {
+            $result = $this->PDOStatement->execute();
             // 调试结束
             $this->debug(false);
-            if ( false === $result ) {
+            if (false === $result) {
                 $this->error();
                 return false;
             } else {
                 return $this->getResult();
             }
-        }catch (\PDOException $e) {
+        } catch (\PDOException $e) {
             $this->error();
             return false;
         }
@@ -149,55 +156,58 @@ abstract class Roc_Db_Driver {
     /**
      * 执行语句
      * @access public
-     * @param string $str  sql指令
-     * @param boolean $fetchSql  不执行只是获取SQL
+     * @param string $str sql指令
+     * @param boolean $fetchSql 不执行只是获取SQL
      * @return mixed
      */
-    public function execute($str,$fetchSql=false) {
+    public function execute2($str, $fetchSql = false)
+    {
         $this->initConnect(true);
-        if ( !$this->_linkID ) return false;
+        if (!$this->_linkID) return false;
         $this->queryStr = $str;
-        if(!empty($this->bind)){
-            $that   =   $this;
-            $this->queryStr =   strtr($this->queryStr,array_map(function($val) use($that){ return '\''.$that->escapeString($val).'\''; },$this->bind));
+        if (!empty($this->bind)) {
+            $that = $this;
+            $this->queryStr = strtr($this->queryStr, array_map(function ($val) use ($that) {
+                return '\'' . $that->escapeString($val) . '\'';
+            }, $this->bind));
         }
-        if($fetchSql){
+        if ($fetchSql) {
             return $this->queryStr;
         }
         //释放前次的查询结果
-        if ( !empty($this->PDOStatement) ) $this->free();
+        if (!empty($this->PDOStatement)) $this->free();
         $this->executeTimes++;
-        N('db_write',1); // 兼容代码
+        N('db_write', 1); // 兼容代码
         // 记录开始执行时间
         $this->debug(true);
-        $this->PDOStatement =   $this->_linkID->prepare($str);
-        if(false === $this->PDOStatement) {
+        $this->PDOStatement = $this->_linkID->prepare($str);
+        if (false === $this->PDOStatement) {
             $this->error();
             return false;
         }
         foreach ($this->bind as $key => $val) {
-            if(is_array($val)){
+            if (is_array($val)) {
                 $this->PDOStatement->bindValue($key, $val[0], $val[1]);
-            }else{
+            } else {
                 $this->PDOStatement->bindValue($key, $val);
             }
         }
-        $this->bind =   array();
-        try{
-            $result =   $this->PDOStatement->execute();
+        $this->bind = array();
+        try {
+            $result = $this->PDOStatement->execute();
             // 调试结束
             $this->debug(false);
-            if ( false === $result) {
+            if (false === $result) {
                 $this->error();
                 return false;
             } else {
                 $this->numRows = $this->PDOStatement->rowCount();
-                if(preg_match("/^\s*(INSERT\s+INTO|REPLACE\s+INTO)\s+/i", $str)) {
+                if (preg_match("/^\s*(INSERT\s+INTO|REPLACE\s+INTO)\s+/i", $str)) {
                     $this->lastInsID = $this->_linkID->lastInsertId();
                 }
                 return $this->numRows;
             }
-        }catch (\PDOException $e) {
+        } catch (\PDOException $e) {
             $this->error();
             return false;
         }
@@ -210,45 +220,54 @@ abstract class Roc_Db_Driver {
      *            要执行查询的SQL语句
      * @return Object
      */
-    public function execute2 ($sql)
+    public function execute($sSQL,$sMode = PDO::FETCH_ASSOC)
     {
-        $sql = trim($sql);
-        if (time() - $this->iPingTime > 300) {
-            $this->close();
-            $this->connect();
-            $this->iPingTime = time();
-        }
+        $sSQL = trim($sSQL);
 
         $iStartTime = microtime(true);
         self::$_iQueryCnt += 1;
-        self::$_aSQL[] = $sql;
-        $res = @$this->oDbh->query($sql);
+        //准备
+        $oPDOStatement = $this->oDbh->prepare($sSQL);
         $iUseTime = round((microtime(true) - $iStartTime) * 1000, 2);
         self::$_iUseTime += $iUseTime;
-
-        // echo $sql . "\n";
-        if ($res === false) {
-            $sErrInfo = join(' ', $this->oDbh->errorInfo());
-            throw new Exception($sErrInfo . ": " . $sql);
-            // echo $sql;exit;
+        if ($oPDOStatement === false) {
+            $sErrInfo = implode('|', $this->oDbh->errorInfo());
+            Roc_G::throwException($sErrInfo . ": " . $sSQL);
         }
-
+        //绑定参数查询 执行
+        foreach ($this->aBind as $key => $val) {
+            $oPDOStatement->bindValue($key, $val);
+        }
+        $result = $oPDOStatement->execute();
+        if ($result === false) {
+            $sErrInfo = implode('|', $oPDOStatement->errorInfo());
+            Roc_G::throwException($sErrInfo . ": " . $sSQL);
+        }
         // 影响记录数
-        $iAffectedRows = $res->rowCount();
+        $iAffectedRows = $oPDOStatement->rowCount();
+        $aRows = $oPDOStatement->fetchAll($sMode);
+        //日志，最后的SQL
+        $sSQLStr = $sSQL;
+        if(!empty($this->aBind)){
+            $sSQLStr = str_replace(array_keys($this->aBind),array_values($this->aBind),$sSQL);
+            $this->aBind = [];
+        }
+        self::$_aSQL[] = $sSQLStr;
+        self::_addLog($sSQLStr, $iAffectedRows, $iUseTime, $this->sDbName);
 
-        self::_addLog($sql, $iAffectedRows, $iUseTime, $this->sDbName);
-
-        return $res;
+        return $aRows;
     }
+
     /**
      * 获得所有的查询数据
      * @access private
      * @return array
      */
-    private function getResult() {
+    private function getResult()
+    {
         //返回数据集
-        $result =   $this->PDOStatement->fetchAll(PDO::FETCH_ASSOC);
-        $this->numRows = count( $result );
+        $result = $this->PDOStatement->fetchAll(PDO::FETCH_ASSOC);
+        $this->numRows = count($result);
         return $result;
     }
 
@@ -258,8 +277,9 @@ abstract class Roc_Db_Driver {
      * @param boolean $execute 是否包含所有查询
      * @return integer
      */
-    public function getQueryTimes($execute=false){
-        return $execute?$this->queryTimes+$this->executeTimes:$this->queryTimes;
+    public function getQueryTimes($execute = false)
+    {
+        return $execute ? $this->queryTimes + $this->executeTimes : $this->queryTimes;
     }
 
     /**
@@ -267,7 +287,8 @@ abstract class Roc_Db_Driver {
      * @access public
      * @return integer
      */
-    public function getExecuteTimes(){
+    public function getExecuteTimes()
+    {
         return $this->executeTimes;
     }
 
@@ -275,7 +296,8 @@ abstract class Roc_Db_Driver {
      * 关闭数据库
      * @access public
      */
-    public function close() {
+    public function close()
+    {
         $this->_linkID = null;
     }
 
@@ -286,8 +308,9 @@ abstract class Roc_Db_Driver {
      * @param mixed $value 绑定值
      * @return void
      */
-    protected function bindParam($name,$value){
-        $this->aBind[':'.$name]  =   $value;
+    protected function bindParam($name, $value)
+    {
+        $this->aBind[':' . $name] = $value;
     }
 
     /**
@@ -296,29 +319,9 @@ abstract class Roc_Db_Driver {
      * @param string $key
      * @return string
      */
-    protected function parseKey(&$key) {
+    protected function parseKey(&$key)
+    {
         return $key;
-    }
-
-    /**
-     * value分析
-     * @access protected
-     * @param mixed $value
-     * @return string
-     */
-    protected function parseValue2($value) {
-        if(is_string($value)) {
-            $value =  strpos($value,':') === 0 && in_array($value,array_keys($this->bind))? $this->escapeString($value) : '\''.$this->escapeString($value).'\'';
-        }elseif(isset($value[0]) && is_string($value[0]) && strtolower($value[0]) == 'exp'){
-            $value =  $this->escapeString($value[1]);
-        }elseif(is_array($value)) {
-            $value =  array_map(array($this, 'parseValue'),$value);
-        }elseif(is_bool($value)){
-            $value =  $value ? '1' : '0';
-        }elseif(is_null($value)){
-            $value =  'null';
-        }
-        return $value;
     }
 
     /**
@@ -327,7 +330,8 @@ abstract class Roc_Db_Driver {
      * @param mixed $fields
      * @return string
      */
-    protected function parseField($fields) {
+    protected function parseField($fields)
+    {
         return $fields;
     }
 
@@ -337,7 +341,8 @@ abstract class Roc_Db_Driver {
      * @param mixed $table
      * @return string
      */
-    protected function parseTable($sTable) {
+    protected function parseTable($sTable)
+    {
         return $sTable;
     }
 
@@ -347,11 +352,12 @@ abstract class Roc_Db_Driver {
      * @param mixed $where
      * @return string
      */
-    protected function parseWhere($where) {
+    protected function parseWhere($where)
+    {
         $sWhere = '';
-        if(is_string($where)){
+        if (is_string($where)) {
             $sWhere = $where;
-        }elseif(is_array($where)){
+        } elseif (is_array($where)) {
             $aTmpWhere = [];
             foreach ($where as $k => $v) {
                 if (is_numeric($k)) {    //兼容,array(0 => 'sField=1', 1 => 'sField>5')这种写法
@@ -362,15 +368,16 @@ abstract class Roc_Db_Driver {
             }
             $sWhere = implode(' AND ', $aTmpWhere);
         }
-        return empty($sWhere)?'':' WHERE '.$sWhere;
+        return empty($sWhere) ? '' : ' WHERE ' . $sWhere;
     }
+
     /**
      * Build一个字段
      * @param unknown $sKey
      * @param unknown $mValue
      * @throws Exception
      */
-    public function parseWhereItem ($sKey, $mValue)
+    public function parseWhereItem($sKey, $mValue)
     {
         //处理字段
         $aOpt = explode(' ', $sKey);
@@ -378,12 +385,12 @@ abstract class Roc_Db_Driver {
         $sField = trim($aOpt[0]);
         $sPrefix = "";
         if (strpos($sField, '.') !== false) {
-            $aFieldTemp = explode(".",$sField,2);
+            $aFieldTemp = explode(".", $sField, 2);
             $sPrefix = $aFieldTemp[0];
             $sField = $aFieldTemp[1];
         }
-        $sRealField = $sPrefix.'`' . $sField . '`';//真正的字段
-        $sBindField = $sPrefix.$sField;//绑定的字段
+        $sRealField = $sPrefix . '`' . $sField . '`';//真正的字段
+        $sBindField = $sPrefix . $sField;//绑定的字段
         //生成where
         if (isset(self::$_aOperators[$sOpt])) {
             switch ($sOpt) {
@@ -395,20 +402,20 @@ abstract class Roc_Db_Driver {
                 case '<':
                 case '<=':
                     $sRet = "{$sRealField} {$sOpt} :{$sBindField}";
-                    $this->bindParam($sBindField,$mValue);
+                    $this->bindParam($sBindField, $mValue);
                     break;
                 case 'BETWEEN':
                     if (is_string($mValue)) {
                         $aTmp = explode(',', $mValue);
-                    } elseif(is_array($mValue)) {
+                    } elseif (is_array($mValue)) {
                         $aTmp = $mValue;
                     }
-                    if(count($aTmp) != 2){
+                    if (count($aTmp) != 2) {
                         Roc_G::throwException("BETWEEN 参数不正确");
                     }
                     $sRet = "{$sRealField} BETWEEN :{$sBindField}1 AND :{$sBindField}2";
-                    $this->bindParam($sBindField."1",$aTmp[0]);
-                    $this->bindParam($sBindField."2",$aTmp[1]);
+                    $this->bindParam($sBindField . "1", $aTmp[0]);
+                    $this->bindParam($sBindField . "2", $aTmp[1]);
                     break;
                 case 'IN':
                 case 'NOTIN':
@@ -420,31 +427,33 @@ abstract class Roc_Db_Driver {
                     } else {
                         $sRet = "{$sRealField} NOT IN(:{$sBindField})";
                     }
-                    $this->bindParam($sBindField,$mValue);
+                    $this->bindParam($sBindField, $mValue);
                     break;
                 case 'LIKE':
                     $sRet = "{$sRealField} LIKE ':{$sBindField}'";
-                    $this->bindParam($sBindField,$mValue);
+                    $this->bindParam($sBindField, $mValue);
                     break;
                 case 'NOTLIKE':
                     $sRet = "{$sRealField} NOT LIKE ':{$sBindField}'";
-                    $this->bindParam($sBindField,$mValue);
+                    $this->bindParam($sBindField, $mValue);
                     break;
             }
-        }else{
+        } else {
             Roc_G::throwException("不支持的操作符");
         }
 
         return $sRet;
     }
+
     /**
      * limit分析
      * @access protected
      * @param mixed $lmit
      * @return string
      */
-    protected function parseLimit($limit) {
-        return !empty($limit)?   ' LIMIT '.$limit.' ':'';
+    protected function parseLimit($limit)
+    {
+        return !empty($limit) ? ' LIMIT ' . $limit . ' ' : '';
     }
 
     /**
@@ -453,10 +462,11 @@ abstract class Roc_Db_Driver {
      * @param mixed $join
      * @return string
      */
-    protected function parseJoin($join) {
+    protected function parseJoin($join)
+    {
         $joinStr = '';
-        if(!empty($join)) {
-            $joinStr    =   ' '.implode(' ',$join).' ';
+        if (!empty($join)) {
+            $joinStr = ' ' . implode(' ', $join) . ' ';
         }
         return $joinStr;
     }
@@ -467,8 +477,9 @@ abstract class Roc_Db_Driver {
      * @param mixed $order
      * @return string
      */
-    protected function parseOrder($order) {
-        return !empty($order)?  ' ORDER BY '.$order:'';
+    protected function parseOrder($order)
+    {
+        return !empty($order) ? ' ORDER BY ' . $order : '';
     }
 
     /**
@@ -477,8 +488,9 @@ abstract class Roc_Db_Driver {
      * @param mixed $group
      * @return string
      */
-    protected function parseGroup($group) {
-        return !empty($group)? ' GROUP BY '.$group:'';
+    protected function parseGroup($group)
+    {
+        return !empty($group) ? ' GROUP BY ' . $group : '';
     }
 
     /**
@@ -487,8 +499,9 @@ abstract class Roc_Db_Driver {
      * @param string $having
      * @return string
      */
-    protected function parseHaving($having) {
-        return  !empty($having)?   ' HAVING '.$having:'';
+    protected function parseHaving($having)
+    {
+        return !empty($having) ? ' HAVING ' . $having : '';
     }
 
     /**
@@ -497,8 +510,9 @@ abstract class Roc_Db_Driver {
      * @param array $bind
      * @return array
      */
-    protected function parseBind($bind){
-        $this->bind   =   array_merge($this->bind,$bind);
+    protected function parseBind($bind)
+    {
+        $this->bind = array_merge($this->bind, $bind);
     }
 
     /**
@@ -509,33 +523,34 @@ abstract class Roc_Db_Driver {
      * @param boolean $replace 是否replace
      * @return false | integer
      */
-    public function insert($data,$options=array(),$replace=false) {
-        $values  =  $fields    = array();
-        $this->model  =   $options['model'];
-        $this->parseBind(!empty($options['bind'])?$options['bind']:array());
-        foreach ($data as $key=>$val){
-            if(is_array($val) && 'exp' == $val[0]){
-                $fields[]   =  $this->parseKey($key);
-                $values[]   =  $val[1];
-            }elseif(is_null($val)){
-                $fields[]   =   $this->parseKey($key);
-                $values[]   =   'NULL';
-            }elseif(is_scalar($val)) { // 过滤非标量数据
-                $fields[]   =   $this->parseKey($key);
-                if(0===strpos($val,':') && in_array($val,array_keys($this->bind))){
-                    $values[]   =   $this->parseValue($val);
-                }else{
-                    $name       =   count($this->bind);
-                    $values[]   =   ':'.$name;
-                    $this->bindParam($name,$val);
+    public function insert($data, $options = array(), $replace = false)
+    {
+        $values = $fields = array();
+        $this->model = $options['model'];
+        $this->parseBind(!empty($options['bind']) ? $options['bind'] : array());
+        foreach ($data as $key => $val) {
+            if (is_array($val) && 'exp' == $val[0]) {
+                $fields[] = $this->parseKey($key);
+                $values[] = $val[1];
+            } elseif (is_null($val)) {
+                $fields[] = $this->parseKey($key);
+                $values[] = 'NULL';
+            } elseif (is_scalar($val)) { // 过滤非标量数据
+                $fields[] = $this->parseKey($key);
+                if (0 === strpos($val, ':') && in_array($val, array_keys($this->bind))) {
+                    $values[] = $this->parseValue($val);
+                } else {
+                    $name = count($this->bind);
+                    $values[] = ':' . $name;
+                    $this->bindParam($name, $val);
                 }
             }
         }
         // 兼容数字传入方式
-        $replace= (is_numeric($replace) && $replace>0)?true:$replace;
-        $sql    = (true===$replace?'REPLACE':'INSERT').' INTO '.$this->parseTable($options['table']).' ('.implode(',', $fields).') VALUES ('.implode(',', $values).')'.$this->parseDuplicate($replace);
-        $sql    .= $this->parseComment(!empty($options['comment'])?$options['comment']:'');
-        return $this->execute($sql,!empty($options['fetch_sql']) ? true : false);
+        $replace = (is_numeric($replace) && $replace > 0) ? true : $replace;
+        $sql = (true === $replace ? 'REPLACE' : 'INSERT') . ' INTO ' . $this->parseTable($options['table']) . ' (' . implode(',', $fields) . ') VALUES (' . implode(',', $values) . ')' . $this->parseDuplicate($replace);
+        $sql .= $this->parseComment(!empty($options['comment']) ? $options['comment'] : '');
+        return $this->execute($sql, !empty($options['fetch_sql']) ? true : false);
     }
 
 
@@ -547,34 +562,35 @@ abstract class Roc_Db_Driver {
      * @param boolean $replace 是否replace
      * @return false | integer
      */
-    public function insertAll($dataSet,$options=array(),$replace=false) {
-        $values  =  array();
-        $this->model  =   $options['model'];
-        if(!is_array($dataSet[0])) return false;
-        $this->parseBind(!empty($options['bind'])?$options['bind']:array());
-        $fields =   array_map(array($this,'parseKey'),array_keys($dataSet[0]));
-        foreach ($dataSet as $data){
-            $value   =  array();
-            foreach ($data as $key=>$val){
-                if(is_array($val) && 'exp' == $val[0]){
-                    $value[]   =    $val[1];
-                }elseif(is_null($val)){
-                    $value[]   =   'NULL';
-                }elseif(is_scalar($val)){
-                    if(0===strpos($val,':') && in_array($val,array_keys($this->bind))){
-                        $value[]   =   $this->parseValue($val);
-                    }else{
-                        $name       =   count($this->bind);
-                        $value[]   =   ':'.$name;
-                        $this->bindParam($name,$val);
+    public function insertAll($dataSet, $options = array(), $replace = false)
+    {
+        $values = array();
+        $this->model = $options['model'];
+        if (!is_array($dataSet[0])) return false;
+        $this->parseBind(!empty($options['bind']) ? $options['bind'] : array());
+        $fields = array_map(array($this, 'parseKey'), array_keys($dataSet[0]));
+        foreach ($dataSet as $data) {
+            $value = array();
+            foreach ($data as $key => $val) {
+                if (is_array($val) && 'exp' == $val[0]) {
+                    $value[] = $val[1];
+                } elseif (is_null($val)) {
+                    $value[] = 'NULL';
+                } elseif (is_scalar($val)) {
+                    if (0 === strpos($val, ':') && in_array($val, array_keys($this->bind))) {
+                        $value[] = $this->parseValue($val);
+                    } else {
+                        $name = count($this->bind);
+                        $value[] = ':' . $name;
+                        $this->bindParam($name, $val);
                     }
                 }
             }
-            $values[]    = 'SELECT '.implode(',', $value);
+            $values[] = 'SELECT ' . implode(',', $value);
         }
-        $sql   =  'INSERT INTO '.$this->parseTable($options['table']).' ('.implode(',', $fields).') '.implode(' UNION ALL ',$values);
-        $sql   .= $this->parseComment(!empty($options['comment'])?$options['comment']:'');
-        return $this->execute($sql,!empty($options['fetch_sql']) ? true : false);
+        $sql = 'INSERT INTO ' . $this->parseTable($options['table']) . ' (' . implode(',', $fields) . ') ' . implode(' UNION ALL ', $values);
+        $sql .= $this->parseComment(!empty($options['comment']) ? $options['comment'] : '');
+        return $this->execute($sql, !empty($options['fetch_sql']) ? true : false);
     }
 
     /**
@@ -584,22 +600,23 @@ abstract class Roc_Db_Driver {
      * @param array $options 表达式
      * @return false | integer
      */
-    public function update($data,$options) {
-        $this->model  =   $options['model'];
-        $this->parseBind(!empty($options['bind'])?$options['bind']:array());
-        $table  =   $this->parseTable($options['table']);
-        $sql   = 'UPDATE ' . $table . $this->parseSet($data);
-        if(strpos($table,',')){// 多表更新支持JOIN操作
-            $sql .= $this->parseJoin(!empty($options['join'])?$options['join']:'');
+    public function update($data, $options)
+    {
+        $this->model = $options['model'];
+        $this->parseBind(!empty($options['bind']) ? $options['bind'] : array());
+        $table = $this->parseTable($options['table']);
+        $sql = 'UPDATE ' . $table . $this->parseSet($data);
+        if (strpos($table, ',')) {// 多表更新支持JOIN操作
+            $sql .= $this->parseJoin(!empty($options['join']) ? $options['join'] : '');
         }
-        $sql .= $this->parseWhere(!empty($options['where'])?$options['where']:'');
-        if(!strpos($table,',')){
+        $sql .= $this->parseWhere(!empty($options['where']) ? $options['where'] : '');
+        if (!strpos($table, ',')) {
             //  单表更新支持order和lmit
-            $sql   .=  $this->parseOrder(!empty($options['order'])?$options['order']:'')
-                .$this->parseLimit(!empty($options['limit'])?$options['limit']:'');
+            $sql .= $this->parseOrder(!empty($options['order']) ? $options['order'] : '')
+                . $this->parseLimit(!empty($options['limit']) ? $options['limit'] : '');
         }
-        $sql .=   $this->parseComment(!empty($options['comment'])?$options['comment']:'');
-        return $this->execute($sql,!empty($options['fetch_sql']) ? true : false);
+        $sql .= $this->parseComment(!empty($options['comment']) ? $options['comment'] : '');
+        return $this->execute($sql, !empty($options['fetch_sql']) ? true : false);
     }
 
     /**
@@ -608,11 +625,12 @@ abstract class Roc_Db_Driver {
      * @param array $options 表达式
      * @return mixed
      */
-    public function select($options=array()) {
-        $this->model  =   $options['model'];
-        $this->parseBind(!empty($options['bind'])?$options['bind']:array());
-        $sql    = $this->buildSelectSql($options);
-        $result   = $this->query($sql,!empty($options['fetch_sql']) ? true : false);
+    public function select($options = array())
+    {
+        $this->model = $options['model'];
+        $this->parseBind(!empty($options['bind']) ? $options['bind'] : array());
+        $sql = $this->buildSelectSql($options);
+        $result = $this->query($sql, !empty($options['fetch_sql']) ? true : false);
         return $result;
     }
 
@@ -622,29 +640,31 @@ abstract class Roc_Db_Driver {
      * @param array $options 表达式
      * @return string
      */
-    public function buildSQL($aOption){
-        $sSQL   = str_replace(
-            ['%TABLE%','%FIELD%','%WHERE%','%GROUP%','%HAVING%','%ORDER%','%LIMIT%'],
+    public function buildSQL($aOption)
+    {
+        $sSQL = str_replace(
+            ['%TABLE%', '%FIELD%', '%WHERE%', '%GROUP%', '%HAVING%', '%ORDER%', '%LIMIT%'],
             [
                 $this->parseTable($aOption['table']),
-                $this->parseField(!empty($aOption['field'])?$aOption['field']:'*'),
-                $this->parseWhere(!empty($aOption['where'])?$aOption['where']:''),
-                $this->parseGroup(!empty($aOption['group'])?$aOption['group']:''),
-                $this->parseHaving(!empty($aOption['having'])?$aOption['having']:''),
-                $this->parseOrder(!empty($aOption['order'])?$aOption['order']:''),
-                $this->parseLimit(!empty($aOption['limit'])?$aOption['limit']:''),
-            ],$this->sSelectSql);
+                $this->parseField(!empty($aOption['field']) ? $aOption['field'] : '*'),
+                $this->parseWhere(!empty($aOption['where']) ? $aOption['where'] : ''),
+                $this->parseGroup(!empty($aOption['group']) ? $aOption['group'] : ''),
+                $this->parseHaving(!empty($aOption['having']) ? $aOption['having'] : ''),
+                $this->parseOrder(!empty($aOption['order']) ? $aOption['order'] : ''),
+                $this->parseLimit(!empty($aOption['limit']) ? $aOption['limit'] : ''),
+            ], $this->sSelectSql);
         return $sSQL;
     }
 
     /**
      * 获取最近一次查询的sql语句
-     * @param string $model  模型名
+     * @param string $model 模型名
      * @access public
      * @return string
      */
-    public function getLastSql($model='') {
-        return $model?$this->modelSql[$model]:$this->queryStr;
+    public function getLastSql($model = '')
+    {
+        return $model ? $this->modelSql[$model] : $this->queryStr;
     }
 
     /**
@@ -652,7 +672,8 @@ abstract class Roc_Db_Driver {
      * @access public
      * @return string
      */
-    public function getLastInsID() {
+    public function getLastInsID()
+    {
         return $this->lastInsID;
     }
 
@@ -661,37 +682,43 @@ abstract class Roc_Db_Driver {
      * @access public
      * @return string
      */
-    public function getError() {
+    public function getError()
+    {
         return $this->error;
     }
 
     /**
      * SQL指令安全过滤
      * @access public
-     * @param string $str  SQL字符串
+     * @param string $str SQL字符串
      * @return string
      */
-    public function escapeString($str) {
+    public function escapeString($str)
+    {
         return addslashes($str);
     }
+
     /**
      * 析构方法
      * @access public
      */
-    public function __destruct() {
+    public function __destruct()
+    {
         // 释放查询
-        if ($this->PDOStatement){
+        if ($this->PDOStatement) {
             $this->free();
         }
         // 关闭连接
         $this->close();
     }
+
     /**
      * 启动事务
      * @access public
      * @return void
      */
-    public function begin() {
+    public function begin()
+    {
         if ($this->iTransaction == 0) {
             if ($this->bUseCommit) {
                 Roc_Exception('本次操作里已经使用了一次事务。');
@@ -699,7 +726,7 @@ abstract class Roc_Db_Driver {
             $this->oDbh->beginTransaction();
             $this->bUseCommit = true;
         }
-        $this->iTransaction ++;
+        $this->iTransaction++;
         return true;
     }
 
@@ -708,11 +735,12 @@ abstract class Roc_Db_Driver {
      * @access public
      * @return boolean
      */
-    public function commit() {
+    public function commit()
+    {
         if ($this->iTransaction < 1) {
             Roc_Exception('出错啦！事务不配对！');
         }
-        $this->iTransaction --;
+        $this->iTransaction--;
         if (0 == $this->iTransaction) {
             $this->oDbh->commit();
         }
@@ -724,12 +752,14 @@ abstract class Roc_Db_Driver {
      * @access public
      * @return boolean
      */
-    public function rollback() {
+    public function rollback()
+    {
         $this->oDbh->rollback();
         $this->iTransaction = 0;
         $this->bUseCommit = false;
         return true;
     }
+
     /**
      * 查询操作的底层接口
      *
@@ -737,7 +767,7 @@ abstract class Roc_Db_Driver {
      *            要执行查询的SQL语句
      * @return Object
      */
-    public function execute ($sql)
+    public function execute($sql)
     {
         $sql = trim($sql);
 
@@ -769,7 +799,7 @@ abstract class Roc_Db_Driver {
      * @param string $sql
      * @return int 影响的行数
      */
-    public function query ($sql)
+    public function query($sql)
     {
         $res = $this->execute($sql);
         return $res->rowCount();
@@ -778,9 +808,9 @@ abstract class Roc_Db_Driver {
     /**
      * 根据类型返回结果
      */
-    public function queryByType($sType,$aParam,$sAssocField)
+    public function queryByType($sType, $aParam, $sAssocField)
     {
-        if(empty($aParam["table"])){
+        if (empty($aParam["table"])) {
             Roc_G::throwException("查询的数据库表不能为空");
         }
         $sSQL = $this->buildSQL($aParam);
@@ -801,14 +831,15 @@ abstract class Roc_Db_Driver {
         }
 
     }
-    public function execByType($type,$aParam,$aData)
+
+    public function execByType($type, $aParam, $aData)
     {
         $table = $this->sDbName;
         switch ($type) {
             case 'update':
-                return $this->update($table,$aData);
+                return $this->update($table, $aData);
             case 'delete':
-                return $this->delete($table,$aParam);
+                return $this->delete($table, $aParam);
             case 'insert':
                 return $this->insert($aData);
             case 'replace':
@@ -820,6 +851,7 @@ abstract class Roc_Db_Driver {
                 return null;
         }
     }
+
     /**
      * 取得所有数据
      *
@@ -829,15 +861,15 @@ abstract class Roc_Db_Driver {
      *            以字段做为数组的key
      * @return array
      */
-    public function getAll ($sSQL, $sAssocField = null)
+    public function getAll($sSQL, $sAssocField = null)
     {
-        $aList = $this->execute($sSQL,PDO::FETCH_ASSOC);
+        $aList = $this->execute($sSQL, PDO::FETCH_ASSOC);
         if (empty($aList)) {
             return [];
         }
         if (null != $sAssocField) {
-            $aRows = array_column($aList,null,$sAssocField);
-        }else{
+            $aRows = array_column($aList, null, $sAssocField);
+        } else {
             $aRows = $aList;
         }
 
@@ -853,10 +885,10 @@ abstract class Roc_Db_Driver {
      *            主从
      * @return array
      */
-    public function getCol ($sSQL)
+    public function getCol($sSQL)
     {
-        $aList = $this->execute($sSQL,PDO::FETCH_NUM);
-        if (! $aList) {
+        $aList = $this->execute($sSQL, PDO::FETCH_NUM);
+        if (!$aList) {
             return [];
         }
         $aRows = [];
@@ -873,10 +905,10 @@ abstract class Roc_Db_Driver {
      *            SQL语句
      * @return array
      */
-    public function getPair ($sSQL)
+    public function getPair($sSQL)
     {
-        $aList = $this->execute($sSQL,PDO::FETCH_NUM);
-        if (! $aList) {
+        $aList = $this->execute($sSQL, PDO::FETCH_NUM);
+        if (!$aList) {
             return [];
         }
         $aRows = [];
@@ -893,10 +925,10 @@ abstract class Roc_Db_Driver {
      *            SQL语句
      * @return array
      */
-    public function getRow ($sSQL)
+    public function getRow($sSQL)
     {
-        $aList = $this->execute($sSQL,PDO::FETCH_ASSOC);
-        if (! $aList) {
+        $aList = $this->execute($sSQL, PDO::FETCH_ASSOC);
+        if (!$aList) {
             return [];
         }
         return $aList[0];
@@ -909,23 +941,27 @@ abstract class Roc_Db_Driver {
      *            SQL语句
      * @return int string
      */
-    public function getOne ($sSQL)
+    public function getOne($sSQL)
     {
-        $aList = $this->execute($sSQL,PDO::FETCH_NUM);
-        if (! $aList) {
+        $aList = $this->execute($sSQL, PDO::FETCH_NUM);
+        if (!$aList) {
             return null;
         }
 
         return $aList[0][0];
     }
 
-    public function querySQL($sql,$sAssocField){
-        return $this->getAll($sql,$sAssocField);
+    //直接查询SQL
+    public function querySQL($sql, $sAssocField)
+    {
+        return $this->getAll($sql, $sAssocField);
     }
+
     public function executeSQL($sql)
     {
         return $this->query($sql);
     }
+
     /**
      * 替换操作
      * @param unknown $table
@@ -933,9 +969,9 @@ abstract class Roc_Db_Driver {
      * @param string $quote
      * @return number
      */
-    public function replace ($row)
+    public function replace($row)
     {
-        return $this->insert($row,'REPLACE');
+        return $this->insert($row, 'REPLACE');
     }
 
     /**
@@ -946,7 +982,7 @@ abstract class Roc_Db_Driver {
      * @param bool $quote 是否进行数据过滤
      * @return int 影响的条数
      */
-    public function insert ($aData, $type = 'INSERT')
+    public function insert($aData, $type = 'INSERT')
     {
         $cols = [];
         $vals = [];
@@ -974,7 +1010,7 @@ abstract class Roc_Db_Driver {
      *            如果启用，则无数据库操作，仅返回SQL字符串。
      * @return int 影响的条数
      */
-    public function insertAll ( $rows, $type = 'INSERT')
+    public function insertAll($rows, $type = 'INSERT')
     {
         if (empty($rows)) {
             return true;
@@ -1012,7 +1048,7 @@ abstract class Roc_Db_Driver {
      *            是否进行过滤
      * @return int 影响的条数
      */
-    public function update ($table, $data, $where = '')
+    public function update($table, $data, $where = '')
     {
         $sets = array();
         foreach ($data as $col => $val) {
@@ -1039,7 +1075,7 @@ abstract class Roc_Db_Driver {
      *            条件
      * @return int
      */
-    public function delete ($table, $where)
+    public function delete($table, $where)
     {
         return $this->query('DELETE FROM ' . $table . ' WHERE ' . $where);
     }
@@ -1049,7 +1085,7 @@ abstract class Roc_Db_Driver {
      *
      * @return int
      */
-    public function lastInsertId ()
+    public function lastInsertId()
     {
         return $this->oDbh->lastInsertId();
     }
@@ -1058,7 +1094,7 @@ abstract class Roc_Db_Driver {
      * 设置Debug对象
      * @param unknown $p_mDebug
      */
-    public static function setDebug ($p_mDebug)
+    public static function setDebug($p_mDebug)
     {
         self::$_oDebug = $p_mDebug;
     }
@@ -1067,7 +1103,7 @@ abstract class Roc_Db_Driver {
      * 取得Debug统计信息
      * @return string
      */
-    public static function getDebugStat ()
+    public static function getDebugStat()
     {
         return '[MySQL]->Query: ' . self::$_iQueryCnt . ', Connent Time: ' . self::$_iConnentTime . ' Use Time:' . self::$_iUseTime;
     }
@@ -1076,7 +1112,7 @@ abstract class Roc_Db_Driver {
      *
      * @param unknown $sSQL
      */
-    private static function _addLog ($sSQL, $iAffectedRows, $iUseTime, $sDbName)
+    private static function _addLog($sSQL, $iAffectedRows, $iUseTime, $sDbName)
     {
         if (Util_Tools::getRunMethod() != 'CLI') {
             if (count(self::$_aSQL) > 300) {
@@ -1101,7 +1137,7 @@ abstract class Roc_Db_Driver {
      * 记录ADU日志
      * @param unknown $sSQL
      */
-    private static function _addADUSQL ($sSQL)
+    private static function _addADUSQL($sSQL)
     {
         if (count(self::$_aADUSQL) > 300) {
             self::$_aADUSQL = array();
@@ -1117,20 +1153,22 @@ abstract class Roc_Db_Driver {
     public static function getLastSQL()
     {
         if (self::$_aSQL) {
-            return self::$_aSQL[count(self::$_aSQL)-1];
+            return self::$_aSQL[count(self::$_aSQL) - 1];
         }
 
         return '';
     }
 
-    public function __destruct ()
+    public function __destruct()
     {
         $this->close();
     }
+
     /*
      * 关闭一次操作只允许一次事务
      */
-    public function closeTranction (){
+    public function closeTranction()
+    {
         $this->bUseCommit = false;
     }
 }
