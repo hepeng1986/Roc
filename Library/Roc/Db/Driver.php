@@ -220,7 +220,7 @@ abstract class Roc_Db_Driver
      *            要执行查询的SQL语句
      * @return Object
      */
-    public function execute($sSQL,$sMode = PDO::FETCH_ASSOC)
+    public function execute($sSQL,$sMode = PDO::FETCH_ASSOC,$bQuery = true)
     {
         $sSQL = trim($sSQL);
 
