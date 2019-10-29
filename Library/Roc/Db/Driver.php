@@ -98,128 +98,9 @@ abstract class Roc_Db_Driver
         $this->PDOStatement = null;
     }
 
-    /**
-     * 执行查询 返回数据集
-     * @access public
-     * @param string $str sql指令
-     * @param boolean $fetchSql 不执行只是获取SQL
-     * @return mixed
-     */
-    public function query($str, $fetchSql = false)
-    {
-        $this->initConnect(false);
-        if (!$this->_linkID) return false;
-        $this->queryStr = $str;
-        if (!empty($this->bind)) {
-            $that = $this;
-            $this->queryStr = strtr($this->queryStr, array_map(function ($val) use ($that) {
-                return '\'' . $that->escapeString($val) . '\'';
-            }, $this->bind));
-        }
-        if ($fetchSql) {
-            return $this->queryStr;
-        }
-        //释放前次的查询结果
-        if (!empty($this->PDOStatement)) $this->free();
-        $this->queryTimes++;
-        N('db_query', 1); // 兼容代码
-        // 调试开始
-        $this->debug(true);
-        $this->PDOStatement = $this->_linkID->prepare($str);
-        if (false === $this->PDOStatement) {
-            $this->error();
-            return false;
-        }
-        foreach ($this->bind as $key => $val) {
-            if (is_array($val)) {
-                $this->PDOStatement->bindValue($key, $val[0], $val[1]);
-            } else {
-                $this->PDOStatement->bindValue($key, $val);
-            }
-        }
-        $this->bind = array();
-        try {
-            $result = $this->PDOStatement->execute();
-            // 调试结束
-            $this->debug(false);
-            if (false === $result) {
-                $this->error();
-                return false;
-            } else {
-                return $this->getResult();
-            }
-        } catch (\PDOException $e) {
-            $this->error();
-            return false;
-        }
-    }
-
-    /**
-     * 执行语句
-     * @access public
-     * @param string $str sql指令
-     * @param boolean $fetchSql 不执行只是获取SQL
-     * @return mixed
-     */
-    public function execute2($str, $fetchSql = false)
-    {
-        $this->initConnect(true);
-        if (!$this->_linkID) return false;
-        $this->queryStr = $str;
-        if (!empty($this->bind)) {
-            $that = $this;
-            $this->queryStr = strtr($this->queryStr, array_map(function ($val) use ($that) {
-                return '\'' . $that->escapeString($val) . '\'';
-            }, $this->bind));
-        }
-        if ($fetchSql) {
-            return $this->queryStr;
-        }
-        //释放前次的查询结果
-        if (!empty($this->PDOStatement)) $this->free();
-        $this->executeTimes++;
-        N('db_write', 1); // 兼容代码
-        // 记录开始执行时间
-        $this->debug(true);
-        $this->PDOStatement = $this->_linkID->prepare($str);
-        if (false === $this->PDOStatement) {
-            $this->error();
-            return false;
-        }
-        foreach ($this->bind as $key => $val) {
-            if (is_array($val)) {
-                $this->PDOStatement->bindValue($key, $val[0], $val[1]);
-            } else {
-                $this->PDOStatement->bindValue($key, $val);
-            }
-        }
-        $this->bind = array();
-        try {
-            $result = $this->PDOStatement->execute();
-            // 调试结束
-            $this->debug(false);
-            if (false === $result) {
-                $this->error();
-                return false;
-            } else {
-                $this->numRows = $this->PDOStatement->rowCount();
-                if (preg_match("/^\s*(INSERT\s+INTO|REPLACE\s+INTO)\s+/i", $str)) {
-                    $this->lastInsID = $this->_linkID->lastInsertId();
-                }
-                return $this->numRows;
-            }
-        } catch (\PDOException $e) {
-            $this->error();
-            return false;
-        }
-    }
 
     /**
      * 查询操作的底层接口
-     *
-     * @param string $sql
-     *            要执行查询的SQL语句
-     * @return Object
      */
     public function execute($sSQL,$sMode = PDO::FETCH_ASSOC,$bQuery = true)
     {
@@ -521,7 +402,25 @@ abstract class Roc_Db_Driver
     {
         $this->bind = array_merge($this->bind, $bind);
     }
-
+    /*
+     * 分析update
+     */
+    protected function parseSet($aData)
+    {
+        $sets = [];
+        foreach ($aData as $col => $val) {
+            // 配制+=,-=,/=,*=的情况
+            if (preg_match('/^(.+)([\+\-\/\*])=$/', $col, $tmp)) {
+                $col = trim($tmp[1]);
+                $opt = trim($tmp[2]);
+                $sets[] = "`{$col}` = `{$col}`{$opt} :{$col}";
+            } else {
+                $sets[] = "`{$col}` = ':{$col}' ";
+            }
+            $this->bindParam(":{$col}", $val);
+        }
+        return " SET " . implode(', ', $sets);
+    }
     /**
      * 插入记录
      * @access public
@@ -530,34 +429,20 @@ abstract class Roc_Db_Driver
      * @param boolean $replace 是否replace
      * @return false | integer
      */
-    public function insert($data, $options = array(), $replace = false)
+    public function insert($aData, $replace = false)
     {
         $values = $fields = array();
-        $this->model = $options['model'];
-        $this->parseBind(!empty($options['bind']) ? $options['bind'] : array());
-        foreach ($data as $key => $val) {
-            if (is_array($val) && 'exp' == $val[0]) {
-                $fields[] = $this->parseKey($key);
-                $values[] = $val[1];
-            } elseif (is_null($val)) {
-                $fields[] = $this->parseKey($key);
-                $values[] = 'NULL';
-            } elseif (is_scalar($val)) { // 过滤非标量数据
-                $fields[] = $this->parseKey($key);
-                if (0 === strpos($val, ':') && in_array($val, array_keys($this->bind))) {
-                    $values[] = $this->parseValue($val);
-                } else {
-                    $name = count($this->bind);
-                    $values[] = ':' . $name;
-                    $this->bindParam($name, $val);
-                }
+        foreach ($aData as $key => $val) {
+            if (is_scalar($val)) {
+                continue;
             }
+            $fields[] = $key;
+            $values[] = ':' . $key;
+            $this->bindParam($key, $val);
         }
-        // 兼容数字传入方式
-        $replace = (is_numeric($replace) && $replace > 0) ? true : $replace;
-        $sql = (true === $replace ? 'REPLACE' : 'INSERT') . ' INTO ' . $this->parseTable($options['table']) . ' (' . implode(',', $fields) . ') VALUES (' . implode(',', $values) . ')' . $this->parseDuplicate($replace);
-        $sql .= $this->parseComment(!empty($options['comment']) ? $options['comment'] : '');
-        return $this->execute($sql, !empty($options['fetch_sql']) ? true : false);
+        $sType = true === $replace ? 'REPLACE' : 'INSERT';
+        $sSQL = "{$sType} INTO `{$this->sDbName}` ('" . implode(',', $fields) . "') VALUES ('" . implode("','", $values) . "')" ;
+        return $this->execute($sSQL, NULL,false);
     }
 
 
@@ -609,24 +494,9 @@ abstract class Roc_Db_Driver
      */
     public function update($aData, $aOptions)
     {
-        $sSQL = 'UPDATE ' . $this->sDbName . $this->parseSet($data);
+        $sSQL = "UPDATE `" . $this->sDbName ."` ". $this->parseSet($aData);
         $sSQL .= $this->parseWhere(!empty($aOptions['where']) ? $aOptions['where'] : '');
         return $this->execute($sSQL, NULL,false);
-    }
-
-    /**
-     * 查找记录
-     * @access public
-     * @param array $options 表达式
-     * @return mixed
-     */
-    public function select($options = array())
-    {
-        $this->model = $options['model'];
-        $this->parseBind(!empty($options['bind']) ? $options['bind'] : array());
-        $sql = $this->buildSelectSql($options);
-        $result = $this->query($sql, !empty($options['fetch_sql']) ? true : false);
-        return $result;
     }
 
     /**
@@ -1026,37 +896,6 @@ abstract class Roc_Db_Driver
             $n++;
         }
         $sql = $type . ' INTO `' . $table . '`(`' . join('`,`', $cols) . '`) VALUES' . join(',', $vals);
-        return $this->query($sql);
-    }
-
-    /**
-     * 数据更新
-     *
-     * @param string $table
-     *            表名
-     * @param array $data
-     *            记录
-     * @param string $where
-     *            更新条件
-     * @param bool $quote
-     *            是否进行过滤
-     * @return int 影响的条数
-     */
-    public function update($table, $data, $where = '')
-    {
-        $sets = array();
-        foreach ($data as $col => $val) {
-            // 配制+=,-=,/=,*=的情况
-            if (preg_match('/^(.+)([\+\-\/\*])=$/', $col, $tmp)) {
-                $col = trim($tmp[1]);
-                $opt = trim($tmp[2]);
-                $sets[] = '`' . $col . '` = `' . $col . '`' . $opt . ' ' . $val;
-            } else {
-                $sets[] = '`' . $col . '` = \'' . $val . '\'';
-            }
-        }
-
-        $sql = 'UPDATE `' . $table . '`' . ' SET ' . implode(', ', $sets) . (($where) ? ' WHERE ' . $where : '');
         return $this->query($sql);
     }
 
