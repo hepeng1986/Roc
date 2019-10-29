@@ -68,6 +68,7 @@ abstract class Roc_Db_Driver
 
     public function connect($aConf)
     {
+        $this->sDbName = $aConf["db"];
         $sDsn = $this->parseDsn($aConf);
         $aOption = [
             PDO::ATTR_ERRMODE => PDO::ERRMODE_WARNING,
@@ -245,7 +246,6 @@ abstract class Roc_Db_Driver
         }
         // 影响记录数
         $iAffectedRows = $oPDOStatement->rowCount();
-        $aRows = $oPDOStatement->fetchAll($sMode);
         //日志，最后的SQL
         $sSQLStr = $sSQL;
         if(!empty($this->aBind)){
@@ -254,8 +254,15 @@ abstract class Roc_Db_Driver
         }
         self::$_aSQL[] = $sSQLStr;
         self::_addLog($sSQLStr, $iAffectedRows, $iUseTime, $this->sDbName);
+        //如果是查询的话返回数据
+        if($bQuery){
+            $aRows = $oPDOStatement->fetchAll($sMode);
+            return $aRows;
+        }else{
+            //如果是执行，
+            return true;
+        }
 
-        return $aRows;
     }
 
     /**
@@ -600,23 +607,11 @@ abstract class Roc_Db_Driver
      * @param array $options 表达式
      * @return false | integer
      */
-    public function update($data, $options)
+    public function update($aData, $aOptions)
     {
-        $this->model = $options['model'];
-        $this->parseBind(!empty($options['bind']) ? $options['bind'] : array());
-        $table = $this->parseTable($options['table']);
-        $sql = 'UPDATE ' . $table . $this->parseSet($data);
-        if (strpos($table, ',')) {// 多表更新支持JOIN操作
-            $sql .= $this->parseJoin(!empty($options['join']) ? $options['join'] : '');
-        }
-        $sql .= $this->parseWhere(!empty($options['where']) ? $options['where'] : '');
-        if (!strpos($table, ',')) {
-            //  单表更新支持order和lmit
-            $sql .= $this->parseOrder(!empty($options['order']) ? $options['order'] : '')
-                . $this->parseLimit(!empty($options['limit']) ? $options['limit'] : '');
-        }
-        $sql .= $this->parseComment(!empty($options['comment']) ? $options['comment'] : '');
-        return $this->execute($sql, !empty($options['fetch_sql']) ? true : false);
+        $sSQL = 'UPDATE ' . $this->sDbName . $this->parseSet($data);
+        $sSQL .= $this->parseWhere(!empty($aOptions['where']) ? $aOptions['where'] : '');
+        return $this->execute($sSQL, NULL,false);
     }
 
     /**
@@ -834,12 +829,11 @@ abstract class Roc_Db_Driver
 
     public function execByType($type, $aParam, $aData)
     {
-        $table = $this->sDbName;
         switch ($type) {
             case 'update':
-                return $this->update($table, $aData);
+                return $this->update($aData,$aParam);
             case 'delete':
-                return $this->delete($table, $aParam);
+                return $this->delete($aParam);
             case 'insert':
                 return $this->insert($aData);
             case 'replace':
