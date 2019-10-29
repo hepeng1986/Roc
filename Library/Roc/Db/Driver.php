@@ -445,7 +445,17 @@ abstract class Roc_Db_Driver
         return $this->execute($sSQL, NULL,false);
     }
 
-
+    /**
+     * 替换操作
+     * @param unknown $table
+     * @param unknown $row
+     * @param string $quote
+     * @return number
+     */
+    public function replace($aData)
+    {
+        return $this->insert($aData,true);
+    }
     /**
      * 批量插入记录
      * @access public
@@ -454,37 +464,46 @@ abstract class Roc_Db_Driver
      * @param boolean $replace 是否replace
      * @return false | integer
      */
-    public function insertAll($dataSet, $options = array(), $replace = false)
+    public function insertAll ($aData)
     {
-        $values = array();
-        $this->model = $options['model'];
-        if (!is_array($dataSet[0])) return false;
-        $this->parseBind(!empty($options['bind']) ? $options['bind'] : array());
-        $fields = array_map(array($this, 'parseKey'), array_keys($dataSet[0]));
-        foreach ($dataSet as $data) {
-            $value = array();
-            foreach ($data as $key => $val) {
-                if (is_array($val) && 'exp' == $val[0]) {
-                    $value[] = $val[1];
-                } elseif (is_null($val)) {
-                    $value[] = 'NULL';
-                } elseif (is_scalar($val)) {
-                    if (0 === strpos($val, ':') && in_array($val, array_keys($this->bind))) {
-                        $value[] = $this->parseValue($val);
-                    } else {
-                        $name = count($this->bind);
-                        $value[] = ':' . $name;
-                        $this->bindParam($name, $val);
-                    }
-                }
-            }
-            $values[] = 'SELECT ' . implode(',', $value);
+        if (empty($aData)) {
+            return true;
         }
-        $sql = 'INSERT INTO ' . $this->parseTable($options['table']) . ' (' . implode(',', $fields) . ') ' . implode(' UNION ALL ', $values);
-        $sql .= $this->parseComment(!empty($options['comment']) ? $options['comment'] : '');
-        return $this->execute($sql, !empty($options['fetch_sql']) ? true : false);
+
+        $table = $this->sDbName;
+        $n = 0;
+        $cols = array();
+        $vals = array();
+        foreach ($aData as $row) {
+            $arr = array();
+            foreach ($row as $col => $val) {
+                if ($n == 0) {
+                    $cols[] = $col;
+                }
+                $arr[] = $val;
+            }
+            $vals[] = "('" . implode("','", $arr) . "')";
+            $n++;
+        }
+        $sSQL = "INSERT INTO `" . $table . "`(`" . implode("`,`", $cols) . "`) VALUES " . implode(",", $vals);
+        return $this->execute($sSQL, NULL,false);
     }
 
+    /**
+     * 删除数据
+     *
+     * @param string $table
+     *            表名
+     * @param string $where
+     *            条件
+     * @return int
+     */
+    public function delete($aOptions)
+    {
+        $sSQL = "DELETE `" . $this->sDbName ."` ";
+        $sSQL .= $this->parseWhere(!empty($aOptions['where']) ? $aOptions['where'] : '');
+        return $this->execute($sSQL, NULL,false);
+    }
     /**
      * 更新记录
      * @access public
@@ -824,93 +843,6 @@ abstract class Roc_Db_Driver
     public function executeSQL($sql)
     {
         return $this->query($sql);
-    }
-
-    /**
-     * 替换操作
-     * @param unknown $table
-     * @param unknown $row
-     * @param string $quote
-     * @return number
-     */
-    public function replace($row)
-    {
-        return $this->insert($row, 'REPLACE');
-    }
-
-    /**
-     * 插入一条记录
-     *
-     * @param string $table 表数
-     * @param array $row 数据
-     * @param bool $quote 是否进行数据过滤
-     * @return int 影响的条数
-     */
-    public function insert($aData, $type = 'INSERT')
-    {
-        $cols = [];
-        $vals = [];
-        $table = $this->sDbName;
-        foreach ($aData as $col => $val) {
-            $cols[] = $col;
-            $vals[] = $val;
-        }
-        $sql = $type . ' INTO `' . $table . '`' . '(`' . join('`, `', $cols) . '`) ' . 'VALUES ("' . join('\',\'', $vals) . '\')';
-        return $this->query($sql);
-    }
-
-    /**
-     * 插入一批数据库
-     *
-     * @param string $table
-     *            表名
-     * @param array $rows
-     *            数据列表 array( array( 'field1'=>$val1, 'field2'=>$val2, ... ), array( 'field1'=>$val1, 'field2'=>$val2, ...), ... )
-     * @param string $type
-     *            插入类型(INSERT|REPLACE)
-     * @param bool $quote
-     *            是否进行数据过滤
-     * @param bool $return_sql
-     *            如果启用，则无数据库操作，仅返回SQL字符串。
-     * @return int 影响的条数
-     */
-    public function insertAll($rows, $type = 'INSERT')
-    {
-        if (empty($rows)) {
-            return true;
-        }
-
-        $table = $this->sDbName;
-        $n = 0;
-        $cols = array();
-        $vals = array();
-        foreach ($rows as $row) {
-            $arr = array();
-            foreach ($row as $col => $val) {
-                if ($n == 0) {
-                    $cols[] = $col;
-                }
-                $arr[] = $val;
-            }
-            $vals[] = '(\'' . join('\', \'', $arr) . '\')';
-            $n++;
-        }
-        $sql = $type . ' INTO `' . $table . '`(`' . join('`,`', $cols) . '`) VALUES' . join(',', $vals);
-        return $this->query($sql);
-    }
-
-    /**
-     * 删除数据
-     *
-     * @param string $table
-     *            表名
-     * @param string $where
-     *            条件
-     * @return int
-     */
-    public function delete($table, $where)
-    {
-        return $this->query('DELETE FROM ' . $table . ' WHERE ' . $where);
     }
 
     /**
