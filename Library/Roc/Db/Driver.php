@@ -39,7 +39,7 @@ abstract class Roc_Db_Driver
     // 执行次数
     protected $executeTimes = 0;
 
-    protected $bind = [];
+    protected $lastInsertId = 0;
     //参数绑定
     protected $aBind = [];
     protected static $_aOperators = array(
@@ -141,22 +141,10 @@ abstract class Roc_Db_Driver
             return $aRows;
         }else{
             //如果是执行，
+            $this->lastInsertId = $this->oDbh->lastInsertId();
             return true;
         }
 
-    }
-
-    /**
-     * 获得所有的查询数据
-     * @access private
-     * @return array
-     */
-    private function getResult()
-    {
-        //返回数据集
-        $result = $this->PDOStatement->fetchAll(PDO::FETCH_ASSOC);
-        $this->numRows = count($result);
-        return $result;
     }
 
     /**
@@ -539,78 +527,28 @@ abstract class Roc_Db_Driver
             ], $this->sSelectSql);
         return $sSQL;
     }
-
-    /**
-     * 获取最近一次查询的sql语句
-     * @param string $model 模型名
-     * @access public
-     * @return string
-     */
-    public function getLastSql($model = '')
-    {
-        return $model ? $this->modelSql[$model] : $this->queryStr;
-    }
-
     /**
      * 获取最近插入的ID
      * @access public
      * @return string
      */
-    public function getLastInsID()
-    {
-        return $this->lastInsID;
+    public function getLastInsID() {
+        return $this->lastInsertId;
     }
-
-    /**
-     * 获取最近的错误信息
-     * @access public
-     * @return string
-     */
-    public function getError()
-    {
-        return $this->error;
-    }
-
-    /**
-     * SQL指令安全过滤
-     * @access public
-     * @param string $str SQL字符串
-     * @return string
-     */
-    public function escapeString($str)
-    {
-        return addslashes($str);
-    }
-
-    /**
-     * 析构方法
-     * @access public
-     */
-    public function __destruct()
-    {
-        // 释放查询
-        if ($this->PDOStatement) {
-            $this->free();
-        }
-        // 关闭连接
-        $this->close();
-    }
-
     /**
      * 启动事务
      * @access public
      * @return void
      */
-    public function begin()
-    {
+    public function begin() {
         if ($this->iTransaction == 0) {
             if ($this->bUseCommit) {
-                Roc_Exception('本次操作里已经使用了一次事务。');
+                throw new Exception('本次操作里已经使用了一次事务。', 3);
             }
             $this->oDbh->beginTransaction();
             $this->bUseCommit = true;
         }
-        $this->iTransaction++;
+        $this->iTransaction ++;
         return true;
     }
 
@@ -619,12 +557,11 @@ abstract class Roc_Db_Driver
      * @access public
      * @return boolean
      */
-    public function commit()
-    {
+    public function commit() {
         if ($this->iTransaction < 1) {
-            Roc_Exception('出错啦！事务不配对！');
+            throw new Exception('出错啦！事务不配对！', 3);
         }
-        $this->iTransaction--;
+        $this->iTransaction --;
         if (0 == $this->iTransaction) {
             $this->oDbh->commit();
         }
@@ -636,57 +573,11 @@ abstract class Roc_Db_Driver
      * @access public
      * @return boolean
      */
-    public function rollback()
-    {
+    public function rollback() {
         $this->oDbh->rollback();
         $this->iTransaction = 0;
         $this->bUseCommit = false;
         return true;
-    }
-
-    /**
-     * 查询操作的底层接口
-     *
-     * @param string $sql
-     *            要执行查询的SQL语句
-     * @return Object
-     */
-    public function execute($sql)
-    {
-        $sql = trim($sql);
-
-        $iStartTime = microtime(true);
-        self::$_iQueryCnt += 1;
-        self::$_aSQL[] = $sql;
-        $res = @$this->oDbh->query($sql);
-        $iUseTime = round((microtime(true) - $iStartTime) * 1000, 2);
-        self::$_iUseTime += $iUseTime;
-
-        // echo $sql . "\n";
-        if ($res === false) {
-            $sErrInfo = join(' ', $this->oDbh->errorInfo());
-            throw new Exception($sErrInfo . ": " . $sql);
-            // echo $sql;exit;
-        }
-
-        // 影响记录数
-        $iAffectedRows = $res->rowCount();
-
-        self::_addLog($sql, $iAffectedRows, $iUseTime, $this->sDbName);
-
-        return $res;
-    }
-
-    /**
-     * 自动执行操作(针对Insert/Update操作)
-     *
-     * @param string $sql
-     * @return int 影响的行数
-     */
-    public function query($sql)
-    {
-        $res = $this->execute($sql);
-        return $res->rowCount();
     }
 
     /**

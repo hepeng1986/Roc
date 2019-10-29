@@ -268,6 +268,11 @@ class Roc_Model
     {
         return self::execute("insertAll",null, $aRows);
     }
+    //获取最近一次的lastID
+    public static function getLastInsID()
+    {
+        return self::getDbh()->getLastInsID();
+    }
     /*
      * 执行
      */
