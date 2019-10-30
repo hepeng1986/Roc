@@ -30,10 +30,6 @@ abstract class Roc_Db_Driver
     private static $_iUseTime = 0;
     // 查询表达式
     protected $sSelectSql = "SELECT %FIELD% FROM %TABLE%  %WHERE% %GROUP% %HAVING% %ORDER% %LIMIT% ";
-    // 查询次数
-    protected $queryTimes = 0;
-    // 执行次数
-    protected $executeTimes = 0;
 
     protected $iLastInsertId = 0;
     //参数绑定
@@ -86,64 +82,6 @@ abstract class Roc_Db_Driver
     }
 
     /**
-     * 释放查询结果
-     * @access public
-     */
-    public function free()
-    {
-        $this->PDOStatement = null;
-    }
-
-
-    /**
-     * 查询操作的底层接口
-     */
-    public function execute2($sSQL, $sMode = PDO::FETCH_ASSOC, $bQuery = true)
-    {
-        $sSQL = trim($sSQL);
-
-        $iStartTime = microtime(true);
-        self::$_iQueryCnt += 1;
-        //准备
-        $oPDOStatement = $this->oDbh->prepare($sSQL);
-        $iUseTime = round((microtime(true) - $iStartTime) * 1000, 2);
-        self::$_iUseTime += $iUseTime;
-        if ($oPDOStatement === false) {
-            $sErrInfo = implode('|', $this->oDbh->errorInfo());
-            Roc_G::throwException($sErrInfo . ": " . $sSQL);
-        }
-        //绑定参数查询 执行
-        foreach ($this->aBind as $key => $val) {
-            $oPDOStatement->bindValue($key, $val);
-        }
-        $result = $oPDOStatement->execute();
-        if ($result === false) {
-            $sErrInfo = implode('|', $oPDOStatement->errorInfo());
-            Roc_G::throwException($sErrInfo . ": " . $sSQL);
-        }
-        // 影响记录数
-        $iAffectedRows = $oPDOStatement->rowCount();
-        //日志，最后的SQL
-        $sSQLStr = $sSQL;
-        if (!empty($this->aBind)) {
-            $sSQLStr = str_replace(array_keys($this->aBind), array_values($this->aBind), $sSQL);
-            $this->aBind = [];
-        }
-        self::$_aSQL[] = $sSQLStr;
-        self::_addLog($sSQLStr, $iAffectedRows, $iUseTime, $this->sDbName);
-        //如果是查询的话返回数据
-        if ($bQuery) {
-            $aRows = $oPDOStatement->fetchAll($sMode);
-            return $aRows;
-        } else {
-            //如果是执行，
-            $this->iLastInsertId = $this->oDbh->lastInsertId();
-            return true;
-        }
-
-    }
-
-    /**
      * 查询操作的底层接口
      */
     public function execute($sSQL)
@@ -181,16 +119,6 @@ abstract class Roc_Db_Driver
         self::_addLog($sSQLStr, $iAffectedRows, $iUseTime, $this->sDbName);
         //返回对象
         return $oPDOStatement;
-        //如果是查询的话返回数据
-        if ($bQuery) {
-            $aRows = $oPDOStatement->fetchAll($sMode);
-            return $aRows;
-        } else {
-            //如果是执行，
-            $this->lastInsertId = $this->oDbh->lastInsertId();
-            return true;
-        }
-
     }
 
     /**
@@ -481,12 +409,12 @@ abstract class Roc_Db_Driver
             return true;
         }
         $n = 0;
-        $cols = array();
-        $vals = array();
+        $cols = [];
+        $vals = [];
         foreach ($aData as $row) {
-            $arr = array();
+            $arr = [];
             foreach ($row as $col => $val) {
-                if ($n == 0) {
+                if (0 == $n) {
                     $cols[] = $col;
                 }
                 $arr[] = $val;
