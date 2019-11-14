@@ -23,8 +23,6 @@ abstract class Roc_Db_Driver
 
     private static $_oDebug = null;
 
-    private static $_aADUSQL = array();
-
     private static $_iConnentTime = 0;
 
     private static $_iUseTime = 0;
@@ -222,7 +220,7 @@ abstract class Roc_Db_Driver
                 case '<':
                 case '<=':
                     $sRet = "{$sRealField} {$sOpt} :{$sBindField}";
-                    $this->bindParam($sBindField, $mValue);
+                    $this->bindParam($sBindField, $mValue);//有问题，同一个字段有问题
                     break;
                 case 'BETWEEN':
                     if (is_string($mValue)) {
@@ -748,26 +746,7 @@ abstract class Roc_Db_Driver
             if (self::$_oDebug) {
                 self::$_oDebug->debug('[DB->' . $sDbName . ']: ' . $sSQL . ' AffectedRows:' . $iAffectedRows . ' Use Time:' . $iUseTime . '毫秒');
             }
-
-            // 记录增删改日志
-            $bIsADU = strtolower(substr($sSQL, 0, 6)) == 'select' ? false : true;
-            if ($bIsADU) {
-                self::_addADUSQL('[DB->' . $sDbName . ']: ' . $sSQL . ' AffectedRows:' . $iAffectedRows . ' Use Time:' . $iUseTime . '毫秒');
-            }
         }
-    }
-
-    /**
-     * 记录ADU日志
-     * @param unknown $sSQL
-     */
-    private static function _addADUSQL($sSQL)
-    {
-        if (count(self::$_aADUSQL) > 300) {
-            self::$_aADUSQL = array();
-        }
-
-        self::$_aADUSQL[] = $sSQL;
     }
 
     /**
@@ -782,12 +761,6 @@ abstract class Roc_Db_Driver
 
         return '';
     }
-
-    public function __destruct()
-    {
-        $this->close();
-    }
-
     /*
      * 关闭一次操作只允许一次事务
      */

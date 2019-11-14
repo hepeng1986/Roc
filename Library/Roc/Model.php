@@ -12,10 +12,10 @@ class Roc_Model
     protected static $sDbName = 'default';
     //动态表名
     protected static $sTableName = '';
-    //主键
-    protected static $sPkField = 'iAutoID';
     //数据库对象
-    protected static $_aInstance = [];
+    private static $_aInstance = [];
+    //支持数据库ID
+    protected static $aUsefulDb = ["mysql,sqlsrv,sqlite,oracle"];
 
     /**
      * 取得Dbh连接
@@ -29,13 +29,13 @@ class Roc_Model
         //缓存单例
         if (!isset(self::$_aInstance[$sDbName])) {
             $aConf = Roc_G::getConf($sDbName, 'Database');
-            if(empty($aConf) || empty($aConf["type"]) || !in_array(strtolower($aConf["type"]),["mysql,sqlsrv,sqlite,oracle"])){
+            if(empty($aConf) || empty($aConf["type"]) || !in_array(strtolower($aConf["type"]),self::$aUsefulDb)){
                 Roc_G::throwException("Db类型配置不正确");
             }
             if(empty($aConf["host"]) || empty($aConf["db"])|| empty($aConf["user"]) || empty($aConf["pass"])){
                 Roc_G::throwException("Db配置不正确");
             }
-            $sClassName = "Roc_Db_"."{$aConf["type"]}";
+            $sClassName = "Roc_Db_".ucfirst($aConf["type"]);
             self::$_aInstance[$sDbName] = new $sClassName($aConf);
         }
         return self::$_aInstance[$sDbName];
@@ -54,18 +54,6 @@ class Roc_Model
     public static function getTable ()
     {
         return static::$sTableName;
-    }
-
-    /**
-     * 取得主键字段
-     */
-    public static function getPKField ()
-    {
-        //先设置，如果没有可以从缓存取
-        if(empty(static::$sPkField)){
-            Roc_G::throwException("无法找到主键。表名:".self::getTable());
-        }
-        return static::$sPkField;
     }
 
     /**
@@ -155,45 +143,9 @@ class Roc_Model
     public static function getAll ($aParam, $sAssosField = null,$bLimit = true)
     {
         if($bLimit && empty($aParam["limit"])){
-            $aParam["limit"] = "0,2000";
+            $aParam["limit"] = "0,10000";
         }
         return self::query("getAll",$aParam,$sAssosField);
-    }
-    /**
-     * 获取主键数据
-     *
-     * @param int $iPKID
-     * @return array/null
-     */
-    public static function getDetail ($pk,$sField="*")
-    {
-        if(empty($sField)){
-            $aParam["field"] = "*";
-        }else{
-            $aParam["field"] = $sField;
-        }
-        //获取pk
-        $pkField = self::getPKField();
-        $aParam["where"][$pkField] = $pk;
-        return self::query("getRow",$aParam);
-    }
-
-    /**
-     * 获取主键列表
-     *
-     * @param $pkFieldList  逗号分隔或者数组
-     * @return array
-     */
-    public static function getPKList ($pkList, $bUsePK = false)
-    {
-        if (empty($pkList)) {
-            return [];
-        }
-        $pkField = self::getPKField();
-        $sAssocField = $bUsePK?$pkField:null;
-        $aParam["where"]["{$pkField} IN"] = $pkList;
-
-        return self::query("getAll",$aParam,$sAssocField);
     }
     /**
      * 执行SQL，还回结果
@@ -265,7 +217,9 @@ class Roc_Model
     {
         return self::execute("insertAll",null, $aRows);
     }
-    //获取最近一次的lastID
+    /*
+     * 获取最近一次的lastID
+     */
     public static function getLastInsID()
     {
         return self::getDbh()->getLastInsID();
@@ -326,12 +280,6 @@ class Roc_Model
     public static function rollback ()
     {
         return self::getDbh()->rollback();
-    }
-    /*
-     * 关闭一次性事务
-     */
-    public static function  closeTranction(){
-        self::getDbh()->closeTranction();
     }
     /**
      * 取得最后一条SQL
