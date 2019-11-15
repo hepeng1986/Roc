@@ -14,8 +14,10 @@ class Roc_Model
     protected static $sTableName = '';
     //数据库对象
     private static $_aInstance = [];
-    //支持数据库ID
-    protected static $aUsefulDb = ["mysql,sqlsrv,sqlite,oracle"];
+    //支持数据库
+    protected static $aUsefulDb = ["mysql","sqlsrv","sqlite","oracle"];
+    //参数选项
+    protected static $aOpt = ["where","group","order","limit","having","table"];
 
     /**
      * 取得Dbh连接
@@ -65,6 +67,7 @@ class Roc_Model
     public static function getCnt ($aParam)
     {
         $iCount = 0;
+        $aParam = self::fixOpt($aParam);
         if(!empty($aParam["group"])){
             $aParam["field"] = $aParam["group"];
             $aData = self::query("getCol",$aParam);
@@ -86,6 +89,7 @@ class Roc_Model
         if(empty($sField)){
             return false;
         }
+        $aParam = self::fixOpt($aParam);
         $aParam["field"] = $sField;
         $aParam["limit"] = "0,1";
         return self::query("getOne",$aParam);
@@ -101,6 +105,7 @@ class Roc_Model
         if(empty($sField)){
             return [];
         }
+        $aParam = self::fixOpt($aParam);
         $aParam["field"] = $sField;
         return self::query("getCol",$aParam);
     }
@@ -116,6 +121,7 @@ class Roc_Model
         if (empty($sKeyField) || empty($sValueField)) {
             return [];
         }
+        $aParam = self::fixOpt($aParam);
         $sField = "{$sKeyField},{$sValueField}";
         $aParam["field"] = $sField;
 
@@ -130,6 +136,7 @@ class Roc_Model
      */
     public static function getRow ($aParam)
     {
+        $aParam = self::fixOpt($aParam);
         $aParam["limit"] = "0,1";
         return self::query("getRow",$aParam);
     }
@@ -142,10 +149,28 @@ class Roc_Model
      */
     public static function getAll ($aParam, $sAssosField = null,$bLimit = true)
     {
+        $aParam = self::fixOpt($aParam);
         if($bLimit && empty($aParam["limit"])){
             $aParam["limit"] = "0,10000";
         }
         return self::query("getAll",$aParam,$sAssosField);
+    }
+    /*
+     * 预处理参数
+     * 主要是兼容参数里直接写where条件
+     */
+    private static function fixOpt($mParam)
+    {
+        $aCheckOpt = self::$aOpt;
+        //如果是数组且不是纯where
+        if(is_array($mParam)){
+            foreach ($aCheckOpt as $item) {
+                if(isset($aParam[$item])){
+                    return $mParam;
+                }
+            }
+        }
+        return ["where"=>$mParam];
     }
     /**
      * 执行SQL，还回结果
@@ -159,7 +184,7 @@ class Roc_Model
     {
         $aMethod = ['getAll','getOne','getRow','getCol','getPair'];
         if(!in_array($sType,$aMethod)){
-            return [];
+            Roc_G::throwException("不支持的查询方法");
         }
         if(empty($aParam["table"])){
             $aParam["table"] = self::getTable();
