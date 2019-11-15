@@ -17,7 +17,7 @@ class Roc_Model
     //支持数据库
     protected static $aUsefulDb = ["mysql","sqlsrv","sqlite","oracle"];
     //参数选项
-    protected static $aOpt = ["where","group","order","limit","having","table"];
+    protected static $aOpt = ["field","where","group","order","limit","having","table"];
 
     /**
      * 取得Dbh连接
