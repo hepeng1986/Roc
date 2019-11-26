@@ -9,27 +9,28 @@
 abstract class Roc_Db_Driver
 {
     //数据库名
-    private $sDbName;
+    private $sDbName = "";
     //事务计数
     private $iTransaction = 0;
     //数据库连接
     private $oDbh = null;
-    /**
-     * 执行sql数组
-     */
+    //SQL语句
     private static $_aSQL = array();
-
+    //查询次数
     private static $_iQueryCnt = 0;
-
+    //连接时间
     private static $_iConnentTime = 0;
-
+    //查询总耗时
     private static $_iUseTime = 0;
+    //数据库类型
+    private static $sDbType = "";
     // 查询表达式
     protected $sSelectSql = "SELECT %FIELD% FROM %TABLE%  %WHERE% %GROUP% %HAVING% %ORDER% %LIMIT% ";
-
+    //最后插入ID
     protected $iLastInsertId = 0;
     //参数绑定
     protected $aBind = [];
+    //支持的运算符
     protected static $_aOperators = array(
         '=' => 1,
         '!=' => 1,
@@ -52,11 +53,13 @@ abstract class Roc_Db_Driver
         $this->oDbh = $this->connect($aConf);
         $iEndTime = microtime(true);
         self::$_iConnentTime = round(($iEndTime - $iStartTime) * 1000, 2);
+        Roc_Debug::register([get_called_class(), 'getDebugStat']);
     }
 
     public function connect($aConf)
     {
         $this->sDbName = $aConf["db"];
+        $this->sDbType = $aConf["type"];
         $sDsn = $this->parseDsn($aConf);
         $aOption = [
             PDO::ATTR_ERRMODE => PDO::ERRMODE_WARNING,
@@ -739,7 +742,7 @@ abstract class Roc_Db_Driver
      */
     public static function getDebugStat()
     {
-        return '[MySQL]->Query: ' . self::$_iQueryCnt . ', Connent Time: ' . self::$_iConnentTime . ' Use Time:' . self::$_iUseTime;
+        return '['.self::$sDbType.']->Query: ' . self::$_iQueryCnt . ', Connent Time: ' . self::$_iConnentTime . ' Use Time:' . self::$_iUseTime;
     }
 
     /**

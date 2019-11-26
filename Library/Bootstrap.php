@@ -4,6 +4,7 @@
  * @Date: 2019/09/25
  */
 date_default_timezone_set('Asia/Shanghai');
+define('MICROTIME',microtime(true));
 //定义路径
 define('DS', DIRECTORY_SEPARATOR);
 //定义路径常量

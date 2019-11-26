@@ -11,7 +11,19 @@ class Roc_Debug
      * log个数
      */
     private static $_iLimit = [];
-
+    /*
+     * 函数
+     */
+    private static $_cbs = [];
+    /*
+     * 注册
+     */
+    public static function register($fun)
+    {
+        if (! in_array($fun, self::$_cbs)) {
+            self::$_cbs[] = $fun;
+        }
+    }
     /**
      * 追加debug信息
      * @param string $type
@@ -33,6 +45,13 @@ class Roc_Debug
      */
     public static function getAll()
     {
+        $aStat = [];
+        foreach (self::$_cbs as $fun) {
+            $aStat[] = call_user_func($fun);
+        }
+        $iRunTime = Roc_G::getRunTime();
+        array_unshift($aStat, "总耗时：{$iRunTime}ms");
+        array_unshift(self::$_logs, implode("\r\n", $aStat));
         return self::$_logs;
     }
 

@@ -55,7 +55,7 @@ class Roc_G
      */
     public static function getRunTime ()
     {
-        return round((microtime(true) - self::$_startTime) * 1000, 2);
+        return round((microtime(true) - MICROTIME) * 1000, 2);
     }
 
     /**
