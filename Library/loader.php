@@ -1,24 +1,19 @@
 <?php
-
-function yafAutoload ($sClassName)
+/*
+ * 自动加载函数
+ */
+function frameAutoload ($sClassName)
 {
     // echo $sClassName."\n";
-    $sFile = join(DIRECTORY_SEPARATOR, explode('_', $sClassName)) . '.php';
-    foreach (array(
-        APP_PATH,
-        APP_EXTEND,
-        LIB_PATH,
-        APP_PATH . '/..'
-    ) as $sPath) {
-        // echo $sPath . '/' . $sFile . "\n";
-        if (file_exists($sPath . '/' . $sFile)) {
-            require_once $sPath . '/' . $sFile;
+    $sFile = implode(DS, explode('_', $sClassName)) . '.php';
+    foreach ([APP_PATH, LIB_PATH] as $sPath) {
+        $sFileName = $sPath . $sFile;
+        if (file_exists($sFileName)) {
+            require_once $sFileName;
             return true;
         }
     }
-    #throw new Exception('类【' . $sClassName . '】没有加载到！');
     return false;
 }
-spl_autoload_register('yafAutoload');
-
-require_once LIB_PATH . '/../vendor/autoload.php';
+spl_autoload_register('frameAutoload');
+require_once VERDOR_PATH . 'autoload.php';

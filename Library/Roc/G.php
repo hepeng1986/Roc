@@ -425,7 +425,7 @@ class Roc_G
     /*
      * 抛出异常
      */
-    public static function throwException($sMsg,$iCode = ERROR_CODE_EXCEPTION){
+    public static function throwException($sMsg,$iCode = ERR_EXCEPTION){
         throw new Roc_Exception($sMsg,$iCode);
     }
     /**

@@ -21,8 +21,6 @@ abstract class Roc_Db_Driver
 
     private static $_iQueryCnt = 0;
 
-    private static $_oDebug = null;
-
     private static $_iConnentTime = 0;
 
     private static $_iUseTime = 0;
@@ -82,7 +80,7 @@ abstract class Roc_Db_Driver
     /**
      * 查询操作的底层接口
      */
-    public function execute($sSQL)
+    public function execute($sSQL,&$iAffectedRows = 0)
     {
         $sSQL = trim($sSQL);
 
@@ -332,17 +330,6 @@ abstract class Roc_Db_Driver
         return !empty($having) ? ' HAVING ' . $having : '';
     }
 
-    /**
-     * 参数绑定分析
-     * @access protected
-     * @param array $bind
-     * @return array
-     */
-    protected function parseBind($bind)
-    {
-        $this->bind = array_merge($this->bind, $bind);
-    }
-
     /*
      * 分析update
      */
@@ -358,7 +345,7 @@ abstract class Roc_Db_Driver
             } else {
                 $sets[] = "`{$col}` = ':{$col}' ";
             }
-            $this->bindParam(":{$col}", $val);
+            $this->bindParam($col, $val);
         }
         return implode(', ', $sets);
     }
@@ -373,7 +360,7 @@ abstract class Roc_Db_Driver
     {
         $values = $fields = [];
         foreach ($aData as $key => $val) {
-            if (is_scalar($val)) {
+            if (!is_scalar($val)) {
                 continue;
             }
             $fields[] = $key;
@@ -381,14 +368,14 @@ abstract class Roc_Db_Driver
             $this->bindParam($key, $val);
         }
         $sType = $bReplace ? 'REPLACE' : 'INSERT';
-        $sSQL = "{$sType} INTO `{$sTableName}` (" . implode(',', $fields) . ") VALUES ('" . implode("','", $values) . "')";
-        $res = $this->execute($sSQL);
+        $sSQL = "{$sType} INTO `{$sTableName}` (`" . implode('`,`', $fields) . "`) VALUES ('" . implode("','", $values) . "')";
+        $this->execute($sSQL,$iAffectedRows);
         //获取最后ID
         $iNum = $this->oDbh->lastInsertId();
         if (is_numeric($iNum)) {
             $this->iLastInsertId = $iNum;
         }
-        return $res->rowCount();
+        return $iAffectedRows;
     }
 
     /**
@@ -431,13 +418,13 @@ abstract class Roc_Db_Driver
             $n++;
         }
         $sSQL = "INSERT INTO `{$sTableName}` (`" . implode("`,`", $cols) . "`) VALUES " . implode(",", $vals);
-        $res = $this->execute($sSQL);
+        $this->execute($sSQL,$iAffectedRows);
         //获取最后ID
         $iNum = $this->oDbh->lastInsertId();
         if (is_numeric($iNum)) {
             $this->iLastInsertId = $iNum;
         }
-        return $res->rowCount();
+        return $iAffectedRows;
     }
 
     /**
@@ -451,10 +438,14 @@ abstract class Roc_Db_Driver
      */
     public function delete($sTableName, $aOptions)
     {
+        if(empty($aOptions)){
+            Roc_G::throwException("不能删除表的所有数据");
+        }
         $sSQL = "DELETE FROM `{$sTableName}` ";
         $sSQL .= $this->parseWhere(!empty($aOptions['where']) ? $aOptions['where'] : '');
-        $res = $this->execute($sSQL);
-        return $res->rowCount();
+        $iAffectedRows = 0;
+        $this->execute($sSQL,$iAffectedRows);
+        return $iAffectedRows;
     }
 
     /**
@@ -466,10 +457,13 @@ abstract class Roc_Db_Driver
      */
     public function update($sTableName, $aData, $aOptions)
     {
+        //SQL语句
         $sSQL = "UPDATE `{$sTableName}` SET " . $this->parseSet($aData);
+        //条件
         $sSQL .= $this->parseWhere(!empty($aOptions['where']) ? $aOptions['where'] : '');
-        $res = $this->execute($sSQL);
-        return $res->rowCount();
+        $iAffectedRows = 0;
+        $this->execute($sSQL,$iAffectedRows);
+        return $iAffectedRows;
     }
 
     /**
@@ -507,18 +501,15 @@ abstract class Roc_Db_Driver
     /**
      * 启动事务
      * @access public
-     * @return void
+     * @return bool
      */
     public function begin()
     {
-        if ($this->iTransaction == 0) {
-            if ($this->bUseCommit) {
-                throw new Exception('本次操作里已经使用了一次事务。', 3);
-            }
-            $this->oDbh->beginTransaction();
-            $this->bUseCommit = true;
+        if ($this->iTransaction > 0) {//不允许嵌套事务
+            Roc_G::throwException('出错啦！已有事务未结束！');
         }
         $this->iTransaction++;
+        $this->oDbh->beginTransaction();
         return true;
     }
 
@@ -529,13 +520,11 @@ abstract class Roc_Db_Driver
      */
     public function commit()
     {
-        if ($this->iTransaction < 1) {
-            throw new Exception('出错啦！事务不配对！', 3);
+        if ($this->iTransaction != 1) {//不允许嵌套事务
+            Roc_G::throwException('出错啦！事务不配对！');
         }
         $this->iTransaction--;
-        if (0 == $this->iTransaction) {
-            $this->oDbh->commit();
-        }
+        $this->oDbh->commit();
         return true;
     }
 
@@ -548,7 +537,6 @@ abstract class Roc_Db_Driver
     {
         $this->oDbh->rollback();
         $this->iTransaction = 0;
-        $this->bUseCommit = false;
         return true;
     }
 
@@ -577,29 +565,6 @@ abstract class Roc_Db_Driver
                 return null;
         }
 
-    }
-
-    public function execByType($type, $aParam, $aData)
-    {
-        if (empty($aParam["table"])) {
-            Roc_G::throwException("查询的数据库表不能为空");
-        }
-        $sTableName = $aParam["table"];
-        switch ($type) {
-            case 'update':
-                return $this->update($sTableName, $aData, $aParam);
-            case 'delete':
-                return $this->delete($sTableName, $aParam);
-            case 'insert':
-                return $this->insert($sTableName, $aData);
-            case 'replace':
-                return $this->replace($sTableName, $aData);
-            case 'insertAll':
-                return $this->insertAll($sTableName, $aData);
-            default:
-                Roc_G::throwException("不支持的DB方法");
-                return null;
-        }
     }
 
     /**
@@ -716,33 +681,56 @@ abstract class Roc_Db_Driver
     }
 
     //直接查询SQL
-    public function querySQL($sql, $sAssocField)
+    public function querySQL($sSQL, $sAssocField = null)
     {
-        return $this->getAll($sql, $sAssocField);
+        return $this->getAll($sSQL, $sAssocField);
     }
-
-    public function executeSQL($sql)
-    {
-        return $this->query($sql);
-    }
-
-    /**
-     * 取得最后的lastInsertId
-     *
-     * @return int
+    /*
+     * 执行SQL
      */
-    public function lastInsertId()
+    public function execByType($type, $aParam, $aData)
     {
-        return $this->oDbh->lastInsertId();
+        if (empty($aParam["table"])) {
+            Roc_G::throwException("数据库表不能为空");
+        }
+        $sTableName = $aParam["table"];
+        switch ($type) {
+            case 'update':
+                return $this->update($sTableName, $aData, $aParam);
+            case 'delete':
+                return $this->delete($sTableName, $aParam);
+            case 'insert':
+                return $this->insert($sTableName, $aData);
+            case 'replace':
+                return $this->replace($sTableName, $aData);
+            case 'insertAll':
+                return $this->insertAll($sTableName, $aData);
+            default:
+                Roc_G::throwException("不支持的DB方法");
+                return null;
+        }
     }
-
-    /**
-     * 设置Debug对象
-     * @param unknown $p_mDebug
+    /*
+     * 直接执行SQL
      */
-    public static function setDebug($p_mDebug)
+    public function executeSQL($sSQL)
     {
-        self::$_oDebug = $p_mDebug;
+        $sSQL = trim($sSQL);
+
+        $iStartTime = microtime(true);
+        self::$_iQueryCnt += 1;
+        //准备
+        $iRet = $this->oDbh->exec($sSQL);
+        $iUseTime = round((microtime(true) - $iStartTime) * 1000, 2);
+        self::$_iUseTime += $iUseTime;
+        if ($iRet === false) {
+            $sErrInfo = implode('|', $this->oDbh->errorInfo());
+            Roc_G::throwException($sErrInfo . ": " . $sSQL);
+        }
+        self::$_aSQL[] = $sSQL;
+        self::_addLog($sSQL, $iRet, $iUseTime, $this->sDbName);
+        //返回影响的行数
+        return $iRet;
     }
 
     /**
@@ -760,17 +748,10 @@ abstract class Roc_Db_Driver
      */
     private static function _addLog($sSQL, $iAffectedRows, $iUseTime, $sDbName)
     {
-        if (Util_Tools::getRunMethod() != 'CLI') {
-            if (count(self::$_aSQL) > 300) {
-                self::$_aSQL = array();
-            }
+        if (count(self::$_aSQL) <= 300) {
             self::$_aSQL[] = $sSQL;
-
-            // 记录Debug日志
-            if (self::$_oDebug) {
-                self::$_oDebug->debug('[DB->' . $sDbName . ']: ' . $sSQL . ' AffectedRows:' . $iAffectedRows . ' Use Time:' . $iUseTime . '毫秒');
-            }
         }
+        Roc_Debug::add('[DB->' . $sDbName . ']: ' . $sSQL . ' AffectedRows:' . $iAffectedRows . ' Use Time:' . $iUseTime . '毫秒');
     }
 
     /**
@@ -784,12 +765,5 @@ abstract class Roc_Db_Driver
         }
 
         return '';
-    }
-    /*
-     * 关闭一次操作只允许一次事务
-     */
-    public function closeTranction()
-    {
-        $this->bUseCommit = false;
     }
 }

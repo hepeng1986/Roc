@@ -191,18 +191,21 @@ class Roc_Model
         }
         return self::getDbh()->queryByType($sType,$aParam,$sAssocField);
     }
-
+    //目前只允许以主键更新和删除
     /**
      * 更新数据
      *
      * @param array $aData
      * @return int/false
      */
-    public static function updateByPK ($pk,$aData)
+    public static function updateByPK ($aData,$pkField)
     {
         //获取pk
-        $pkField = self::getPKField();
-        $aParam["where"][$pkField] = $pk;
+        if (! isset($aData[$pkField])) {
+            Roc_G::throwException("更新时没有找不到主键值");
+        }
+        $aParam["where"][$pkField] = $aData[$pkField];
+        unset($aData[$pkField]);
         return self::execute("update",$aParam, $aData);
     }
 
@@ -212,11 +215,10 @@ class Roc_Model
      * @param int $iPKID
      * @return int/false
      */
-    public static function delByPK ($pk)
+    public static function delByPK ($pkID,$pkField)
     {
         //获取pk
-        $pkField = self::getPKField();
-        $aParam["where"][$pkField] = $pk;
+        $aParam["where"][$pkField] = $pkID;
         return self::execute("delete",$aParam,null);
     }
     /**
@@ -225,10 +227,12 @@ class Roc_Model
      * @param array $aData
      * @return int/false
      */
-    public static function insert ($aData,$sType = 'INSERT')
+    public static function insert ($aData,&$iLastID = 0,$sType = 'INSERT')
     {
         if ($sType == 'INSERT') {
-            return self::execute("insert", null,$aData);
+            $iRet = self::execute("insert", null,$aData);
+            $iLastID = self::getLastInsertID();
+            return $iRet;
         } else {
             return self::execute("replace", null,$aData);
         }
@@ -238,16 +242,18 @@ class Roc_Model
      * @param unknown $rows
      * @param string $type
      */
-    public static function insertAll($aRows)
+    public static function insertAll($aRows,&$iLastID = 0)
     {
-        return self::execute("insertAll",null, $aRows);
+        $iRet =  self::execute("insertAll",null, $aRows);
+        $iLastID = self::getLastInsertID();
+        return $iRet;
     }
     /*
      * 获取最近一次的lastID
      */
-    public static function getLastInsID()
+    public static function getLastInsertID()
     {
-        return self::getDbh()->getLastInsID();
+        return self::getDbh()->getLastInsertID();
     }
     /*
      * 执行
@@ -256,7 +262,7 @@ class Roc_Model
     {
         $aMethod = ['update','delete','insert','replace','insertAll'];
         if(!in_array($sType,$aMethod)){
-            return [];
+            Roc_G::throwException("不支持的执行方法");
         }
         if(empty($aParam) || empty($aParam["table"])){
             $aParam["table"] = self::getTable();
@@ -271,7 +277,7 @@ class Roc_Model
      *            (all,row,one,col,pair,query)
      * @param string $sField
      */
-    public static function querySQL ($sSQL,$sAssocField)
+    public static function querySQL ($sSQL,$sAssocField = null)
     {
         return self::getDbh()->querySQL($sSQL,$sAssocField);
     }
@@ -312,6 +318,17 @@ class Roc_Model
     public static function getLastSQL()
     {
         return self::getDbh()->getLastSQL();
+    }
+    /**
+     * 生成查询语句
+     */
+    public static function buildQuerySQL($aParam)
+    {
+        $aParam = self::fixOpt($aParam);
+        if(empty($aParam["table"])){
+            $aParam["table"] = self::getTable();
+        }
+        return self::getDbh()->buildSQL($aParam);
     }
     /**
      * 根据查询条件，从数据库获取数据列表 getAll子集
