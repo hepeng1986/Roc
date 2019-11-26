@@ -9,21 +9,21 @@
 abstract class Roc_Db_Driver
 {
     //数据库名
-    private $sDbName = "";
+    protected $sDbName = "";
     //事务计数
-    private $iTransaction = 0;
+    protected $iTransaction = 0;
     //数据库连接
-    private $oDbh = null;
+    protected $oDbh = null;
     //SQL语句
-    private static $_aSQL = array();
+    protected static $_aSQL = array();
     //查询次数
-    private static $_iQueryCnt = 0;
+    protected static $_iQueryCnt = 0;
     //连接时间
-    private static $_iConnentTime = 0;
+    protected static $_iConnentTime = 0;
     //查询总耗时
-    private static $_iUseTime = 0;
+    protected static $_iUseTime = 0;
     //数据库类型
-    private static $sDbType = "";
+    protected static $sDbType = "";
     // 查询表达式
     protected $sSelectSql = "SELECT %FIELD% FROM %TABLE%  %WHERE% %GROUP% %HAVING% %ORDER% %LIMIT% ";
     //最后插入ID
@@ -59,7 +59,7 @@ abstract class Roc_Db_Driver
     public function connect($aConf)
     {
         $this->sDbName = $aConf["db"];
-        $this->sDbType = $aConf["type"];
+        self::$sDbType = $aConf["type"];
         $sDsn = $this->parseDsn($aConf);
         $aOption = [
             PDO::ATTR_ERRMODE => PDO::ERRMODE_WARNING,
