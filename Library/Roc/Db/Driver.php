@@ -145,7 +145,7 @@ abstract class Roc_Db_Driver
      * @param string $key
      * @return string
      */
-    protected function parseKey(&$key)
+    protected function parseKey($key)
     {
         return $key;
     }
@@ -394,41 +394,11 @@ abstract class Roc_Db_Driver
     }
 
     /**
-     * 批量插入记录
-     * @access public
-     * @param mixed $dataSet 数据集
-     * @param array $options 参数表达式
-     * @param boolean $replace 是否replace
-     * @return false | integer
+     * @param $sTableName
+     * @param $aData
+     * @return mixed
      */
-    public function insertAll($sTableName, $aData)
-    {
-        if (empty($aData)) {
-            return true;
-        }
-        $n = 0;
-        $cols = [];
-        $vals = [];
-        foreach ($aData as $row) {
-            $arr = [];
-            foreach ($row as $col => $val) {
-                if (0 == $n) {
-                    $cols[] = $col;
-                }
-                $arr[] = $val;
-            }
-            $vals[] = "('" . implode("','", $arr) . "')";
-            $n++;
-        }
-        $sSQL = "INSERT INTO `{$sTableName}` (`" . implode("`,`", $cols) . "`) VALUES " . implode(",", $vals);
-        $this->execute($sSQL,$iAffectedRows);
-        //获取最后ID
-        $iNum = $this->oDbh->lastInsertId();
-        if (is_numeric($iNum)) {
-            $this->iLastInsertId = $iNum;
-        }
-        return $iAffectedRows;
-    }
+    abstract protected function insertAll($sTableName, $aData);
 
     /**
      * 删除数据

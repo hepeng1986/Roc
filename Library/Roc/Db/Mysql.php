@@ -1,8 +1,10 @@
 <?php
+
 /**
- * mysql数据库驱动 
+ * mysql数据库驱动
  */
-class Roc_Db_Mysql extends Roc_Db_Driver{
+class Roc_Db_Mysql extends Roc_Db_Driver
+{
 
     /**
      * 解析pdo连接的dsn信息
@@ -10,9 +12,10 @@ class Roc_Db_Mysql extends Roc_Db_Driver{
      * @param array $config 连接信息
      * @return string
      */
-    protected function parseDsn($aConf){
+    protected function parseDsn($aConf)
+    {
         $sDsn = "mysql:host={$aConf['host']};dbname={$aConf['db']}";
-        if(!empty($aConf["port"])){
+        if (!empty($aConf["port"])) {
             $sDsn .= ";port={$aConf['port']}";
         }
         return $sDsn;
@@ -24,51 +27,46 @@ class Roc_Db_Mysql extends Roc_Db_Driver{
      * @param string $key
      * @return string
      */
-    protected function parseKey(&$key) {
-        $key   =  trim($key);
-        if(!is_numeric($key) && !preg_match('/[,\'\"\*\(\)`.\s]/',$key)) {
-           $key = '`'.$key.'`';
+    protected function parseKey(&$key)
+    {
+        $key = trim($key);
+        if (!is_numeric($key) && !preg_match('/[,\'\"\*\(\)`.\s]/', $key)) {
+            $key = '`' . $key . '`';
         }
         return $key;
     }
 
     /**
-     * 批量插入记录
-     * @access public
-     * @param mixed $dataSet 数据集
-     * @param array $options 参数表达式
-     * @param boolean $replace 是否replace
-     * @return false | integer
+     * @param $sTableName 表名
+     * @param $aData 数组
+     * @return int  受影响的行数
      */
-    public function insertAll($dataSet,$options=array(),$replace=false) {
-        $values  =  array();
-        $this->model  =   $options['model'];
-        if(!is_array($dataSet[0])) return false;
-        $this->parseBind(!empty($options['bind'])?$options['bind']:array());
-        $fields =   array_map(array($this,'parseKey'),array_keys($dataSet[0]));
-        foreach ($dataSet as $data){
-            $value   =  array();
-            foreach ($data as $key=>$val){
-                if(is_array($val) && 'exp' == $val[0]){
-                    $value[]   =  $val[1];
-                }elseif(is_null($val)){
-                    $value[]   =   'NULL';
-                }elseif(is_scalar($val)){
-                    if(0===strpos($val,':') && in_array($val,array_keys($this->bind))){
-                        $value[]   =   $this->parseValue($val);
-                    }else{
-                        $name       =   count($this->bind);
-                        $value[]   =   ':'.$name;
-                        $this->bindParam($name,$val);
-                    }
-                }
-            }
-            $values[]    = '('.implode(',', $value).')';
+    public function insertAll($sTableName, $aData)
+    {
+        if (empty($aData)) {
+            return true;
         }
-        // 兼容数字传入方式
-        $replace= (is_numeric($replace) && $replace>0)?true:$replace;
-        $sql    =  (true===$replace?'REPLACE':'INSERT').' INTO '.$this->parseTable($options['table']).' ('.implode(',', $fields).') VALUES '.implode(',',$values).$this->parseDuplicate($replace);
-        $sql    .= $this->parseComment(!empty($options['comment'])?$options['comment']:'');
-        return $this->execute($sql,!empty($options['fetch_sql']) ? true : false);
+        $n = 0;
+        $cols = [];
+        $vals = [];
+        foreach ($aData as $row) {
+            $arr = [];
+            foreach ($row as $col => $val) {
+                if (0 == $n) {
+                    $cols[] = $col;
+                }
+                $arr[] = $val;
+            }
+            $vals[] = "('" . implode("','", $arr) . "')";
+            $n++;
+        }
+        $sSQL = "INSERT INTO `{$sTableName}` (`" . implode("`,`", $cols) . "`) VALUES " . implode(",", $vals);
+        $this->execute($sSQL, $iAffectedRows);
+        //获取最后ID
+        $iNum = $this->oDbh->lastInsertId();
+        if (is_numeric($iNum)) {
+            $this->iLastInsertId = $iNum;
+        }
+        return $iAffectedRows;
     }
 }
