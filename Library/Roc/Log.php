@@ -14,25 +14,13 @@ class Roc_Log
     const ERROR = 3;
 
     const SYS = 4;
-
-    /**
-     * 配置信息
-     *
-     * @var array
-     */
-    private static $_aConfig;
-
-    /**
-     * 日志级别
-     */
+    
+    //日志目录
+    private static $_sDir = "";
+    //日志级别
     private static $_iLevel = 0;
-
-    /**
-     * 是否初始化
-     *
-     * @var boolean
-     */
-    private static $_bInit = false;
+    //是否自定义级别及目录
+    private static $_bCustom = false;
 
     /**
      * 构造函数
