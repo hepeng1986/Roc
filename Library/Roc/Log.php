@@ -8,52 +8,14 @@
 class Roc_Log
 {
     const DEBUG = 1;
+    const ERROR = 3;//只写错误日志
+    const ALL = 9;//写所有日志，如果配置ALL还高，则不写日志
 
-    const WARN = 2;
-
-    const ERROR = 3;
-
-    const SYS = 4;
-    
     //日志目录
     private static $_sDir = "";
-    //日志级别
-    private static $_iLevel = 0;
-    //是否自定义级别及目录
-    private static $_bCustom = false;
+    //级别字符串
+    private static $aLevelNames = [1 => "DEBUG", 3 => "ERROR", 9 => "INFO"];
 
-    /**
-     * 构造函数
-     */
-    private static function init ()
-    {
-        self::$_bInit = true;
-        self::$_aConfig = Roc_G::getConf(null, 'logger');
-
-        $sBaseDir = self::$_aConfig['sBaseDir'];
-        unset(self::$_aConfig['sBaseDir']);
-
-        foreach (self::$_aConfig as $sKey => $mConfig) {
-            $sDir = isset(self::$_aConfig[$sKey]['sDir']) ? self::$_aConfig[$sKey]['sDir'] : $sKey;
-            self::$_aConfig[$sKey]['sPath'] = $sBaseDir . DIRECTORY_SEPARATOR . $sDir . DIRECTORY_SEPARATOR;
-            if (! is_dir(self::$_aConfig[$sKey]['sPath'])) {
-                umask(0000);
-                if (false === mkdir(self::$_aConfig[$sKey]['sPath'], 0755, true)) {
-                    throw new Exception(__CLASS__ . ': can not create path(' . self::$_aConfig[$sKey]['sPath'] . ').');
-                    return false;
-                }
-            }
-        }
-    }
-
-    public static function getLogLevelByName ($p_sLevelName)
-    {
-        $p_sLevelName = strtoupper($p_sLevelName);
-
-        $iLevel = isset(self::$aLevelNames[$p_sLevelName]) ? self::$aLevelNames[$p_sLevelName] : - 1;
-
-        return $iLevel;
-    }
     /**
      * 设置日志级别
      */
@@ -62,46 +24,40 @@ class Roc_Log
         $iLevel = intval($iLevel);
         self::$_iLevel = $iLevel;
     }
+
     /**
      * 获取级别
      */
     public static function getLevel()
     {
-        if(!empty(self::$_iLevel)){
-            return self::$_iLevel;
-        }
-        //conf
-        $iLevel = Roc_G::getConf("loglevel","Config");
-        if(empty($iLevel)){
+        $iLevel = Roc_G::getConf("loglevel", "Config");
+        if (empty($iLevel) || !is_numeric($iLevel)) {
             $iLevel = self::DEBUG;
         }
         return $iLevel;
     }
+
     //写日志
-    public static function debug ($mMsg)
+    public static function debug($mMsg)
     {
         self::log(self::DEBUG, $mMsg);
     }
-    public static function warn ($mMsg)
-    {
-        self::log(self::WARN, $mMsg);
-    }
-    public static function error ($mMsg)
+    public static function error($mMsg)
     {
         self::log(self::ERROR, $mMsg);
     }
-    public static function sys ($mMsg)
+    public static function all($mMsg)
     {
-        self::log(self::SYS, $mMsg);
+        self::log(self::ALL, $mMsg);
     }
 
-    private static function log ($iLevel, $mMsg)
+    private static function log($iLevel, $mMsg)
     {
         if (isset(self::$_aConfig[$p_sConf]['iLevel']) && $p_iLevel < self::$_aConfig[$p_sConf]['iLevel']) {
             return;
         }
 
-        if (! self::$_bInit) {
+        if (!self::$_bInit) {
             self::init();
         }
 
@@ -112,14 +68,14 @@ class Roc_Log
         file_put_contents($sLogFile, $sContent, FILE_APPEND);
     }
 
-    protected static function convertToStr ($data)
+    protected static function convertToStr($data)
     {
         if (null === $data || is_bool($data)) {
             return var_export($data, true);
         }
 
         if (is_scalar($data)) {
-            return (string) $data;
+            return (string)$data;
         }
 
         if (version_compare(PHP_VERSION, '5.4.0', '>=')) {
