@@ -47,14 +47,14 @@ class Roc_Log
             $sDir = OTHER_PATH."Logs".DS.date("Ym").DS;
         }
         if(file_exists($sDir) && is_dir($sDir)){
-            $sLogFile = $sDir .date("Ymd")."log";
+            $sLogFile = $sDir .date("Ymd").".log";
         }elseif(is_file($sDir)){
             $sLogFile = $sDir;
         }else{
             if(false === mkdir($sDir,0755,true)){
                 Roc_G::throwException(__CLASS__ . ": can not mkdir '{$sDir}'");
             }
-            $sLogFile = $sDir .date("Ymd")."log";
+            $sLogFile = $sDir .date("Ymd").".log";
         }
         $sLogLevelName = self::$aLevelNames[$iLevel];
         $sContent = date('Y-m-d H:i:s') . " [{$sLogLevelName}] " . self::convertToStr($mMsg) . PHP_EOL;
