@@ -7,23 +7,8 @@
  */
 class Roc_Log
 {
-    const DEBUG = 1;
-    const ERROR = 3;//只写错误日志
-    const ALL = 9;//写所有日志，如果配置ALL还高，则不写日志
-
-    //日志目录
-    private static $_sDir = "";
     //级别字符串
-    private static $aLevelNames = [1 => "DEBUG", 3 => "ERROR", 9 => "INFO"];
-
-    /**
-     * 设置日志级别
-     */
-    public static function setLevel($iLevel)
-    {
-        $iLevel = intval($iLevel);
-        self::$_iLevel = $iLevel;
-    }
+    private static $aLevelNames = [DEBUG_LOG => "DEBUG", ERROR_LOG => "ERROR", ALL_LOG => "INFO"];
 
     /**
      * 获取级别
@@ -32,7 +17,7 @@ class Roc_Log
     {
         $iLevel = Roc_G::getConf("loglevel", "Config");
         if (empty($iLevel) || !is_numeric($iLevel)) {
-            $iLevel = self::DEBUG;
+            $iLevel = LEVEL_LOG;
         }
         return $iLevel;
     }
@@ -40,48 +25,48 @@ class Roc_Log
     //写日志
     public static function debug($mMsg)
     {
-        self::log(self::DEBUG, $mMsg);
+        self::log($mMsg,DEBUG_LOG);
     }
     public static function error($mMsg)
     {
-        self::log(self::ERROR, $mMsg);
+        self::log($mMsg,ERROR_LOG);
     }
     public static function all($mMsg)
     {
-        self::log(self::ALL, $mMsg);
+        self::log($mMsg,ALL_LOG);
     }
 
-    private static function log($iLevel, $mMsg)
+    public static function log($mMsg,$iLevel = 9,$sDir = "")
     {
-        if (isset(self::$_aConfig[$p_sConf]['iLevel']) && $p_iLevel < self::$_aConfig[$p_sConf]['iLevel']) {
+        //得到系统配置的日志级别
+        $iConfLevel = self::getLevel();
+        if($iConfLevel > $iLevel){
             return;
         }
-
-        if (!self::$_bInit) {
-            self::init();
+        if(empty($sDir)){
+            $sDir = OTHER_PATH."Logs".DS.date("Ym").DS;
         }
-
-        $sLogLevelName = array_keys(self::$aLevelNames)[$p_iLevel];
-        $sLogFile = self::$_aConfig[$p_sConf]['sPath'] . ($p_sType ? $p_sType . '-' : '') . $sLogLevelName . '-' . date(self::$_aConfig[$p_sConf]['sSplit']) . '.log';
-        $sContent = date('Y-m-d H:i:s') . ' ' . self::convertToStr($mMsg) . PHP_EOL;
+        if(file_exists($sDir) && is_dir($sDir)){
+            $sLogFile = $sDir .date("Ymd")."log";
+        }elseif(is_file($sDir)){
+            $sLogFile = $sDir;
+        }else{
+            if(false === mkdir($sDir,0755,true)){
+                Roc_G::throwException(__CLASS__ . ": can not mkdir '{$sDir}'");
+            }
+            $sLogFile = $sDir .date("Ymd")."log";
+        }
+        $sLogLevelName = self::$aLevelNames[$iLevel];
+        $sContent = date('Y-m-d H:i:s') . " [{$sLogLevelName}] " . self::convertToStr($mMsg) . PHP_EOL;
         //写日志
-        file_put_contents($sLogFile, $sContent, FILE_APPEND);
+        @file_put_contents($sLogFile, $sContent, FILE_APPEND);
     }
 
-    protected static function convertToStr($data)
+    private static function convertToStr($data)
     {
-        if (null === $data || is_bool($data)) {
+        if (is_null($data) || is_bool($data) || is_array($data)) {
             return var_export($data, true);
         }
-
-        if (is_scalar($data)) {
-            return (string)$data;
-        }
-
-        if (version_compare(PHP_VERSION, '5.4.0', '>=')) {
-            return @json_encode($data, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-        }
-
-        return str_replace('\\/', '/', @json_encode($data));
+        return $data;
     }
 }

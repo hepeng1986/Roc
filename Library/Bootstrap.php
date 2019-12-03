@@ -16,10 +16,10 @@ define('VERDOR_PATH', ROOT_PATH.'vendor'.DS);
 define('CONF_PATH', ROOT_PATH.'Conf'.DS);
 define('OTHER_PATH', ROOT_PATH.'Other'.DS);
 //默认日志级别
-define('LOG_LEVEL',     2);
-define('LOG_SYS',     1);
-define('LOG_ERROR',     2);
-define('LOG_DEBUG',     4);
+define('LEVEL_LOG',     1);
+define('ALL_LOG',     9);//写所有日志，如果配置ALL还高，则不写日志
+define('ERROR_LOG',     3);//只写错误日志
+define('DEBUG_LOG',     1);
 //错误码
 define('ERR_USER',     9000);//用户操作错误
 define('ERR_SERVER',     9800);//服务器错误
