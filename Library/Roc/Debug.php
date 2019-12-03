@@ -51,7 +51,7 @@ class Roc_Debug
         }
         $iRunTime = Roc_G::getRunTime();
         array_unshift($aStat, "总耗时：{$iRunTime}ms");
-        array_unshift(self::$_logs, implode("\r\n", $aStat));
+        array_unshift(self::$_logs, implode(PHP_EOL, $aStat));
         return self::$_logs;
     }
 

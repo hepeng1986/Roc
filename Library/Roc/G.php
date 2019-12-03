@@ -428,6 +428,17 @@ class Roc_G
     public static function throwException($sMsg,$iCode = ERR_EXCEPTION){
         throw new Roc_Exception($sMsg,$iCode);
     }
+    /*
+     * 获取debug信息
+     */
+    public static function getDebugData ($bForce = false)
+    {
+        if (self::isDebug()) {
+            return Roc_Debug::getAll();
+        }
+
+        return [];
+    }
     /**
      * 提取出异常错误里的详细信息
      *
