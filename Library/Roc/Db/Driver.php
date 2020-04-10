@@ -19,7 +19,7 @@ abstract class Roc_Db_Driver
     //查询次数
     protected static $_iQueryCnt = 0;
     //连接时间
-    protected static $_iConnentTime = 0;
+    protected $_iConnentTime = 0;
     //查询总耗时
     protected static $_iUseTime = 0;
     //数据库类型
@@ -52,7 +52,7 @@ abstract class Roc_Db_Driver
         $iStartTime = microtime(true);
         $this->oDbh = $this->connect($aConf);
         $iEndTime = microtime(true);
-        self::$_iConnentTime = round(($iEndTime - $iStartTime) * 1000, 2);
+        $this->_iConnentTime = round(($iEndTime - $iStartTime) * 1000, 2);
         Roc_Debug::register([get_called_class(), 'getDebugStat']);
     }
 
@@ -93,8 +93,6 @@ abstract class Roc_Db_Driver
         $oPDOStatement = $this->oDbh->prepare($sSQL);
         //SQL字符串
         $sSQLStr = $this->_formatSQL($sSQL);
-        $iUseTime = round((microtime(true) - $iStartTime) * 1000, 2);
-        self::$_iUseTime += $iUseTime;
         if ($oPDOStatement === false) {
             $sErrInfo = implode('|', $this->oDbh->errorInfo());
             Roc_G::throwException($sErrInfo . ": " . $sSQLStr);
@@ -113,6 +111,8 @@ abstract class Roc_Db_Driver
         //清除绑定参数
         $this->aBind = [];
         self::$_aSQL[] = $sSQLStr;
+        $iUseTime = round((microtime(true) - $iStartTime) * 1000, 2);
+        self::$_iUseTime += $iUseTime;
         self::_addLog($sSQLStr, $iAffectedRows, $iUseTime, $this->sDbName);
         //返回对象
         return $oPDOStatement;
@@ -340,7 +340,7 @@ abstract class Roc_Db_Driver
     {
         $sets = [];
         foreach ($aData as $col => $val) {
-            // 配制+=,-=,/=,*=的情况
+            // 配置+=,-=,/=,*=的情况
             if (preg_match('/^(.+)([\+\-\/\*])=$/', $col, $tmp)) {
                 $col = trim($tmp[1]);
                 $opt = trim($tmp[2]);
