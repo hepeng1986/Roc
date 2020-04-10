@@ -91,11 +91,13 @@ abstract class Roc_Db_Driver
         self::$_iQueryCnt += 1;
         //准备
         $oPDOStatement = $this->oDbh->prepare($sSQL);
+        //SQL字符串
+        $sSQLStr = $this->_formatSQL($sSQL);
         $iUseTime = round((microtime(true) - $iStartTime) * 1000, 2);
         self::$_iUseTime += $iUseTime;
         if ($oPDOStatement === false) {
             $sErrInfo = implode('|', $this->oDbh->errorInfo());
-            Roc_G::throwException($sErrInfo . ": " . $sSQL);
+            Roc_G::throwException($sErrInfo . ": " . $sSQLStr);
         }
         //绑定参数查询 执行
         foreach ($this->aBind as $key => $val) {
@@ -104,12 +106,10 @@ abstract class Roc_Db_Driver
         $result = $oPDOStatement->execute();
         if ($result === false) {
             $sErrInfo = implode('|', $oPDOStatement->errorInfo());
-            Roc_G::throwException($sErrInfo . ": " . $sSQL);
+            Roc_G::throwException($sErrInfo . ": " . $sSQLStr);
         }
         // 影响记录数
         $iAffectedRows = $oPDOStatement->rowCount();
-        //日志，最后的SQL
-        $sSQLStr = $this->_formatSQL($sSQL);
         //清除绑定参数
         $this->aBind = [];
         self::$_aSQL[] = $sSQLStr;
@@ -535,7 +535,6 @@ abstract class Roc_Db_Driver
                 return $this->getAll($sSQL, $sAssocField);
             default:
                 Roc_G::throwException("不支持的查询方法");
-                return null;
         }
 
     }
@@ -560,12 +559,10 @@ abstract class Roc_Db_Driver
             return [];
         }
         if (null != $sAssocField) {
-            $aRows = array_column($aList, null, $sAssocField);
+            return array_column($aList, null, $sAssocField);
         } else {
-            $aRows = $aList;
+            return $aList;
         }
-
-        return $aRows;
     }
 
     /**

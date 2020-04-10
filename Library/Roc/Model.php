@@ -26,7 +26,7 @@ class Roc_Model
     {
         $sDbName = static::$sDbName;
         if(empty($sDbName)){
-            Roc_G::throwException("Db名称不能为空");
+            Roc_G::throwException("没有配置DB");
         }
         //缓存单例
         if (!isset(self::$_aInstance[$sDbName])) {
